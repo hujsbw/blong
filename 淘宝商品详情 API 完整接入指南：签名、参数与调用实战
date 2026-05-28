@@ -1,0 +1,761 @@
+淘宝开放平台商品详情 API 是电商开发、竞品分析、数据对接的核心接口，可获取商品标题、价格、规格、主图、销量、类目等核心数据。正式接入涉及应用创建、权限申请、参数组装、签名加密、接口调用多个环节，不少开发者会卡在签名错误、参数缺失、请求失败等问题上。本文结合实战流程，搭配代码与配图指引，手把手完成全流程接入。
+（配图 1：淘宝开放平台应用管理页面截图，标注应用 Key、AppSecret 获取位置，放置于本段下方）
+一、接入前置准备
+调用淘宝官方 API，首先要完成平台配置，这是调用成功的基础。
+登录淘宝开放平台，完成开发者实名认证，创建第三方应用。
+在应用详情页获取核心凭证：App Key、App Secret，这是生成签名的必备密钥。
+进入接口权限中心，搜索商品详情查询接口，提交权限申请并等待审核，无权限会直接返回调用失败。
+确认接口固定请求地址、公共请求参数，淘宝 API 统一采用 TOP 网关调用，请求方式为 HTTPS。
+（配图 2：接口权限申请页面截图，标注商品详情权限勾选入口，放置于本小节末尾）
+二、核心参数与签名规则
+淘宝 API 对参数和签名校验极为严格，签名错误是最高发问题。
+
+必传公共参数
+所有请求必须携带：app_key、timestamp、format、v、sign、method。其中method固定为商品详情接口名称，timestamp为当前时间戳（精确到秒），格式统一使用 json。
+业务参数
+核心入参为num_iid，即淘宝商品 ID，为字符串类型，不可强转为数字。
+签名生成逻辑
+将所有请求参数按字母升序拼接为字符串，末尾拼接App Secret，再通过 MD5 加密并转大写，最终得到 sign 签名。参数顺序错误、时间戳过期，都会导致签名失效。
+三、Python 实战调用代码
+以下代码完整实现参数组装、自动签名、接口请求、异常捕获，可直接替换凭证运行。
+python
+运行
+import requests
+import time
+import hashlib
+1. 基础配置（替换为自己平台凭证）
+APP_KEY = "你的AppKey"
+APP_SECRET = "你的AppSecret"
+API_GATEWAY = "https://gw.api.taobao.com/router/rest"
+
+接口方法名 + 目标商品ID
+API_METHOD = "taobao.item.get"
+ITEM_ID = "123456789" # 淘宝商品num_iid
+
+2. 生成MD5签名
+def create_sign(params, secret):
+# 参数按键名升序排序
+sorted_items = sorted(params.items())
+sign_str = "".join([f"{k}{v}" for k, v in sorted_items]) + secret
+md5_res = hashlib.md5(sign_str.encode("utf-8")).hexdigest()
+return md5_res.upper()
+
+3. 调用商品详情接口
+def get_taobao_item():
+# 组装全部参数
+params = {
+"app_key": APP_KEY,
+"method": API_METHOD,
+"timestamp": str(int(time.time())),
+"format": "json",
+"v": "2.0",
+"num_iid": ITEM_ID
+}
+# 生成签名并加入参数
+params["sign"] = create_sign(params, APP_SECRET)
+# 发起请求
+try:
+response = requests.get(API_GATEWAY, params=params, timeout=15)
+return response.json()
+except Exception as e:
+return f"请求异常：{str(e)}"
+
+执行调用
+if name == "main":
+result = get_taobao_item()
+print(result)
+四、常见问题与优化建议
+运行代码后若调用失败，优先排查三点：一是权限是否审核通过；二是时间戳是否与服务器时区一致，超时会拦截请求；三是签名是否转为大写。
+正式上线后，建议增加请求频率控制，规避平台限流；同时对不常变动的商品数据做本地缓存，减少接口重复请求。按照本文流程配置，即可稳定实现淘宝商品详情数据自动化获取。
+示例：
+{
+"data": {
+"apiStack": [
+{
+"name": "esi",
+"value": "{"feature":{"makeup":"false","isVirtualRechargeItem":"false","isDonateItem":"false","promotion2019":"true","bSeller":"true","promotion2018":"true","useMeiLiHuiPrice":"false","o2O":"false","showCommonBanner":"false","mediumPrice":"true","guessYouLike":"true","isXiaXuan":"false","isJuPinTuan":"false","tmall2018":"true","abNewDetailRoute":"false","nabundleItem":"false","hasSku":"true","bundleItem":"false","taobao2018":"true","wygProtect":"true","hasCartRecommend":"false","openNewSku":"true","bigMarkDownWarm":"true","hasBrandScene":"false","fmcgRecommend":"false","superActTime":"false","isXinxuan":"false","labelPro":"true","notUseVip95CardBar":"false","hasApparelIcon":"false","openGradient":"true","isCloudChanger":"false","bybtForTmall":"true","hideAsk":"false","showshopRecommendItems":"true","overSeaBuy":"false","wygItem":"false","hasIntervalPrice":"true","isDamai":"false","waitForStart":"false","newAddress":"true","hideSMww":"false","useNewRate":"false","renovation":"false","enablePriceAttract":"false","hasAddCartCoudan":"false","showCuntaoTag":"false","recommendReason":"false","switchToOldApp":"false","isNewShareGift":"false","enableNewMainPic":"true","hideShopDsr":"false","newPrice":"true","showSkuThumbnail":"true","pricedCoupon":"false","hasCoupon":"false","buhuo":"true","cainiaoNoramal":"true","xinxuanRec":"false","showNewPersonBag":"false","showSku":"true","showShopCard":"false","serviceFreeNotSelect":"true","showYaoDai":"false","useBenifitNew":"false","isXXSale":"false","enableDpbModule":"false","showLiteAppRec":"false","customSkuImage":"false","closefindsimilar":"true","showTmallApp":"false","showEncyclopedia":"false","hasNewCombo":"false","noShareGroup":"true","enableBusiness2020":"true","showSkuProRate":"true","hasAddTmallCartCoudan":"false","useVip95CardStyle":"false","multistage":"false","hasQualification":"false","showShopV4":"false","isTspace":"false","hasBrandevent":"false","tmallAskAll":"true","series":"false","isTTSale":"false","hideDsrNew":"false","newIndicator":"true","shareGroup":"false","showSMww":"false","smSpeBottomBar":"false","isShopVipMember":"false","includeSkuData":"true"},"trade":{"useWap":"false","cartJumpUrl":"https://h5.m.taobao.com/awp/base/cart.htm","isWap":"false","outerCartParam":{},"cartEnable":"true","buyEnable":"true","buyText":"立即购买","cartParam":{"areaId":"440113","addressId":"23163762177"},"subBuyText":"折后￥59.84起","cartConfirmEnable":"true","tradeParams":{},"buyParam":{"areaId":"440113","addressId":"23163762177"}},"item":{"extraMap":{},"containerDimension":"1:1","h5ItemUrl":"https://new.m.taobao.com/detail.htm?id=707325316093&hybrid=true","vagueSellCount":"10","skuText":"请选择颜色/尺码","showShopActivitySize":"2","titleIcon":"//img.alicdn.com/tfs/TB1SMG7nnvI8KJjSspjXXcgjXXa-78-36.png?getAvatar=avatar","descType":"2","infoText":{},"itemId":"707325316093","spuId":"3782104443","sellCount":"10","title":"男士长袖白衬衫免烫内搭大尖领衬衣2025秋季冰丝垂感长袖衬衫男潮","skuInfo":"颜色/尺码"},"h5DegradeReasonData":{},"newH5Data":{"h5NewMtop":"true","h5TtidVersion":"10.2.10"},"buyer":{"tmallMemberLevel":"0"},"price":{"transmitPrice":{"priceText":"68-88","sugProm":"false"},"shopPromTitle":"促销","superMarketShopProm":[],"shopProm":[{"activityId":"0","iconText":"积分","title":"购买可得34积分","content":["购买可得34积分"],"type":"5"}],"priceTag":[{"text":"优惠价","textColor":"#FF5000","bgColor":"#FFF1EB","bigmarkdownTag":"false"},{"text":"淘金币抵3%","textColor":"#FFFFFF","bgColor":"#11000000","bigmarkdownTag":"false"}],"newExtraPrices":[{"priceText":"115","priceTitle":"价格","showTitle":"true","lineThrough":"true","sugProm":"false"}],"extraPrices":[{"priceText":"115","priceTitle":"价格","showTitle":"true","lineThrough":"true","sugProm":"false"}],"price":{"priceText":"68-88","sugProm":"false"}},"consumerProtection":{"channel4X":{},"passValue":"none","serviceProtection":{"basicService":{"id":"204","name":"基础保障","services":[{"serviceId":"5303","name":"上门取退","desc":["预约上门取件，最快1小时上门，取件后极速退款到账"],"icon":"//img.alicdn.com/tfs/TB1_YjSjeL2gK0jSZPhXXahvXXa-54-54.png","priority":"6555"},{"serviceId":"2979","name":"极速退款","desc":["满足相应条件时，诚信用户在退货寄出后，享受极速退款到账"],"icon":"//img.alicdn.com/tfs/TB1_YjSjeL2gK0jSZPhXXahvXXa-54-54.png","priority":"6505"},{"serviceId":"6554","name":"七天无理由退换","desc":["满足相应条件（吊牌缺失、洗涤后不支持）时，消费者可申请“七天无理由退换货”"],"icon":"//img.alicdn.com/tfs/TB1_YjSjeL2gK0jSZPhXXahvXXa-54-54.png","priority":"5130"}]}},"items":[{"serviceId":"5303","title":"上门取退","desc":"预约上门取件，最快1小时上门，取件后极速退款到账","type":"0","priority":"6555"},{"serviceId":"2979","title":"极速退款","desc":"满足相应条件时，诚信用户在退货寄出后，享受极速退款到账","type":"0","priority":"6505"},{"serviceId":"6554","title":"七天无理由退换","desc":"满足相应条件（吊牌缺失、洗涤后不支持）时，消费者可申请“七天无理由退换货”","type":"0","priority":"5130"}],"strength":"normal","params":"204:5303,2979,6554"},"resource":{"indexCouponData":{},"entrances":{},"entrancesBizsContent":"","sizeChart":{"recommendTip":"试试个人尺码"},"share":{"name":"分享","iconType":"1","params":{"iconFont":"ꄪ","iconColor":"#999999"}},"floatView":{},"promsCalcInfo":{"cheapestMoney":"6800","hasCoupon":"false","needReqCouDan":"false"}},"priceAttractData":{},"vertical":{"consumeMedical":{},"freshFood":{"nationalFlag":"//g.alicdn.com/mui/flag-img/circle@2x/CN.png"},"askAll":{"askIcon":"https://img.alicdn.com/tps/TB1tVU6PpXXXXXFaXXXXXXXXXXX-102-60.png","askText":"宝贝好不好，问问已买的人","showNum":"2","linkUrl":"https://meta.m.taobao.com/app/mtb/taobao-ugc/ask/list?disableNav=YES&refId=707325316093","title":"问大家","questNum":"0"},"tmallLeaseData":{"rentOfficialPriceFen":"0","rentGuaranteePriceFen":"0","zhiMaSigned":"false"}},"delivery":{"addressWeexUrl":"https://market.m.taobao.com/apps/market/detailrax/address-picker.html?spm=a2116h.app.0.0.16d957e9nDYOzv&wh_weex=true","completedTo":"广州市 番禺区 东环街道","overseaContraBandFlag":"false","showAreaChooser":"true","postage":"快递: 免运费","addressId":"23163762177","to":"番禺区","areaSell":"false","areaId":"440113","extras":{"PostTime":{"text":"48小时内发货，预计后天送达"},"ReceiveTime":{"text":"48小时内发货，预计后天送达"}},"from":"浙江杭州"},"skuBase":{"skus":[{"skuId":"4969001788571","propPath":"1627207:28320;20509:28315"},{"skuId":"4969001788572","propPath":"1627207:28320;20509:28316"},{"skuId":"4969001788573","propPath":"1627207:28320;20509:28317"},{"skuId":"4969001788574","propPath":"1627207:28320;20509:6145171"},{"skuId":"4969001788575","propPath":"1627207:28341;20509:28315"},{"skuId":"4969001788576","propPath":"1627207:28341;20509:28316"},{"skuId":"4969001788577","propPath":"1627207:28341;20509:28317"},{"skuId":"4969001788578","propPath":"1627207:28341;20509:6145171"},{"skuId":"4969001788579","propPath":"1627207:39084227;20509:28315"},{"skuId":"4969001788580","propPath":"1627207:39084227;20509:28316"},{"skuId":"4969001788581","propPath":"1627207:39084227;20509:28317"},{"skuId":"4969001788582","propPath":"1627207:39084227;20509:6145171"},{"skuId":"4969001788583","propPath":"1627207:27035267;20509:28315"},{"skuId":"4969001788584","propPath":"1627207:27035267;20509:28316"},{"skuId":"4969001788585","propPath":"1627207:27035267;20509:28317"},{"skuId":"4969001788586","propPath":"1627207:27035267;20509:6145171"}],"props":[{"pid":"1627207","name":"颜色","values":[{"vid":"28320","name":"白色 衬衫","image":"//gw.alicdn.com/bao/uploaded/i2/4154522680/O1CN01ecuwYu1VfUHKiNcZ9_!!4154522680.jpg","sortOrder":"0"},{"vid":"28341","name":"黑色 衬衫","image":"//gw.alicdn.com/bao/uploaded/i3/4154522680/O1CN01XoYzEv1VfUHGRpnfB_!!4154522680.jpg","sortOrder":"5"},{"vid":"39084227","name":"254白色 裤子","image":"//gw.alicdn.com/bao/uploaded/i1/4154522680/O1CN01UdnHEa1VfUHI979Mm_!!4154522680.jpg","sortOrder":"6"},{"vid":"27035267","name":"254黑色 裤子","image":"//gw.alicdn.com/bao/uploaded/i2/4154522680/O1CN01kWqFcD1VfUHGRpbKe_!!4154522680.jpg","sortOrder":"7"}]},{"pid":"20509","name":"尺码","values":[{"vid":"28315","name":"M 95-130斤","sortOrder":"1"},{"vid":"28316","name":"L 125-145斤","sortOrder":"2"},{"vid":"28317","name":"XL 145-160斤","sortOrder":"3"},{"vid":"6145171","name":"2XL 160-180斤","sortOrder":"4"}]}]},"skuCore":{"skuItem":{"hideQuantity":"false","recommendTip":"输入尺码，找到适合的","showAddress":"false","buttonText":"输入尺码","location":"番禺区"},"sku2info":{"4969001788579":{"price":{"priceMoney":"6800","priceText":"68","showTitle":"false","sugProm":"false"},"subPrice":{"priceMoney":"5984","priceText":"59.84","priceTitle":"折后","priceColor":"#FF4F00","priceTitleColor":"#FF4F00","sugProm":"false"},"quantity":"98","logisticsTime":"48小时内发货，预计后天送达","quantityText":"有货"},"4969001788578":{"price":{"priceMoney":"8800","priceText":"88","showTitle":"false","sugProm":"false"},"quantity":"0","logisticsTime":"48小时内发货，预计后天送达","quantityText":"无货"},"4969001788573":{"price":{"priceMoney":"8800","priceText":"88","showTitle":"false","sugProm":"false"},"subPrice":{"priceMoney":"7744","priceText":"77.44","priceTitle":"折后","priceColor":"#FF4F00","priceTitleColor":"#FF4F00","sugProm":"false"},"quantity":"95","logisticsTime":"48小时内发货，预计后天送达","quantityText":"有货"},"4969001788584":{"price":{"priceMoney":"6800","priceText":"68","showTitle":"false","sugProm":"false"},"subPrice":{"priceMoney":"5984","priceText":"59.84","priceTitle":"折后","priceColor":"#FF4F00","priceTitleColor":"#FF4F00","sugProm":"false"},"quantity":"89","logisticsTime":"48小时内发货，预计后天送达","quantityText":"有货"},"4969001788572":{"price":{"priceMoney":"8800","priceText":"88","showTitle":"false","sugProm":"false"},"subPrice":{"priceMoney":"7744","priceText":"77.44","priceTitle":"折后","priceColor":"#FF4F00","priceTitleColor":"#FF4F00","sugProm":"false"},"quantity":"97","logisticsTime":"48小时内发货，预计后天送达","quantityText":"有货"},"4969001788583":{"price":{"priceMoney":"6800","priceText":"68","showTitle":"false","sugProm":"false"},"subPrice":{"priceMoney":"5984","priceText":"59.84","priceTitle":"折后","priceColor":"#FF4F00","priceTitleColor":"#FF4F00","sugProm":"false"},"quantity":"82","logisticsTime":"48小时内发货，预计后天送达","quantityText":"有货"},"4969001788571":{"price":{"priceMoney":"8800","priceText":"88","showTitle":"false","sugProm":"false"},"subPrice":{"priceMoney":"7744","priceText":"77.44","priceTitle":"折后","priceColor":"#FF4F00","priceTitleColor":"#FF4F00","sugProm":"false"},"quantity":"96","logisticsTime":"48小时内发货，预计后天送达","quantityText":"有货"},"4969001788582":{"price":{"priceMoney":"6800","priceText":"68","showTitle":"false","sugProm":"false"},"subPrice":{"priceMoney":"5984","priceText":"59.84","priceTitle":"折后","priceColor":"#FF4F00","priceTitleColor":"#FF4F00","sugProm":"false"},"quantity":"99","logisticsTime":"48小时内发货，预计后天送达","quantityText":"有货"},"4969001788581":{"price":{"priceMoney":"6800","priceText":"68","showTitle":"false","sugProm":"false"},"subPrice":{"priceMoney":"5984","priceText":"59.84","priceTitle":"折后","priceColor":"#FF4F00","priceTitleColor":"#FF4F00","sugProm":"false"},"quantity":"97","logisticsTime":"48小时内发货，预计后天送达","quantityText":"有货"},"4969001788577":{"price":{"priceMoney":"8800","priceText":"88","showTitle":"false","sugProm":"false"},"quantity":"0","logisticsTime":"48小时内发货，预计后天送达","quantityText":"无货"},"4969001788576":{"price":{"priceMoney":"8800","priceText":"88","showTitle":"false","sugProm":"false"},"quantity":"0","logisticsTime":"48小时内发货，预计后天送达","quantityText":"无货"},"4969001788575":{"price":{"priceMoney":"8800","priceText":"88","showTitle":"false","sugProm":"false"},"quantity":"0","logisticsTime":"48小时内发货，预计后天送达","quantityText":"无货"},"4969001788586":{"price":{"priceMoney":"6800","priceText":"68","showTitle":"false","sugProm":"false"},"subPrice":{"priceMoney":"5984","priceText":"59.84","priceTitle":"折后","priceColor":"#FF4F00","priceTitleColor":"#FF4F00","sugProm":"false"},"quantity":"94","logisticsTime":"48小时内发货，预计后天送达","quantityText":"有货"},"4969001788574":{"price":{"priceMoney":"8800","priceText":"88","showTitle":"false","sugProm":"false"},"subPrice":{"priceMoney":"7744","priceText":"77.44","priceTitle":"折后","priceColor":"#FF4F00","priceTitleColor":"#FF4F00","sugProm":"false"},"quantity":"96","logisticsTime":"48小时内发货，预计后天送达","quantityText":"有货"},"4969001788585":{"price":{"priceMoney":"6800","priceText":"68","showTitle":"false","sugProm":"false"},"subPrice":{"priceMoney":"5984","priceText":"59.84","priceTitle":"折后","priceColor":"#FF4F00","priceTitleColor":"#FF4F00","sugProm":"false"},"quantity":"85","logisticsTime":"48小时内发货，预计后天送达","quantityText":"有货"},"0":{"price":{"priceMoney":"6800","priceText":"68-88","showTitle":"false","sugProm":"false"},"quantity":"200","quantityText":"有货"},"4969001788580":{"price":{"priceMoney":"6800","priceText":"68","showTitle":"false","sugProm":"false"},"subPrice":{"priceMoney":"5984","priceText":"59.84","priceTitle":"折后","priceColor":"#FF4F00","priceTitleColor":"#FF4F00","sugProm":"false"},"quantity":"99","logisticsTime":"48小时内发货，预计后天送达","quantityText":"有货"}},"abSwitch":{"enableShowPic":"true","enableShowProtection":"true"},"atmosphere":{}},"services":{"standardServiceV2":[{"title":"特色服务","items":[{"serviceId":"925350335013","name":"清洗养护","desc":"（天猫自营 上门取送 180天随时约）","standardPresentationV2":"true","action":"服务说明","actionLink":"https://pages.tmall.com/wow/fuwu/act/service-intro?serviceItemIdentity=925350335013&serviceLocation=440100&location=440100","groupName":"特色服务","isvService":"false","autoSelect":"false","mustSelect":"false","uniqueServices":[{"uniqueId":"5807475289017","name":"单衣清洗","autoSelect":"false"},{"uniqueId":"5807475289019","name":"单衣清洗2件","autoSelect":"false"},{"uniqueId":"5807475289018","name":"单衣1件清洗","autoSelect":"false"}]}]}],"multiSelect":"true","sku2StandardServiceV2":{"0":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788571":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788574":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788575":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788572":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788573":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788578":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788579":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788576":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788577":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788582":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788583":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788580":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788581":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788586":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788584":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}},"4969001788585":{"925350335013:5807475289019":{"uniqueId":"5807475289019","serviceId":"925350335013","price":"2090","free":"false","desc":"（顺丰取送）","cells":"false"},"925350335013:5807475289018":{"uniqueId":"5807475289018","serviceId":"925350335013","price":"1090","free":"false","cells":"false"},"925350335013:5807475289017":{"uniqueId":"5807475289017","serviceId":"925350335013","price":"1190","free":"false","desc":"（顺丰取送）","cells":"false"}}},"mustSelect":"false","sku2serviceMap":{"0":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788571","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788571","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788571","price":"1090","free":"false"}]}],"4969001788571":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788571","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788571","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788571","price":"1090","free":"false"}]}],"4969001788574":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788574","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788574","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788574","price":"1090","free":"false"}]}],"4969001788575":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788575","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788575","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788575","price":"1090","free":"false"}]}],"4969001788572":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788572","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788572","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788572","price":"1090","free":"false"}]}],"4969001788573":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788573","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788573","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788573","price":"1090","free":"false"}]}],"4969001788578":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788578","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788578","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788578","price":"1090","free":"false"}]}],"4969001788579":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788579","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788579","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788579","price":"1090","free":"false"}]}],"4969001788576":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788576","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788576","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788576","price":"1090","free":"false"}]}],"4969001788577":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788577","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788577","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788577","price":"1090","free":"false"}]}],"4969001788582":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788582","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788582","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788582","price":"1090","free":"false"}]}],"4969001788583":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788583","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788583","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788583","price":"1090","free":"false"}]}],"4969001788580":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788580","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788580","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788580","price":"1090","free":"false"}]}],"4969001788581":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788581","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788581","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788581","price":"1090","free":"false"}]}],"4969001788586":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788586","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788586","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788586","price":"1090","free":"false"}]}],"4969001788584":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788584","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788584","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788584","price":"1090","free":"false"}]}],"4969001788585":[{"serviceId":"925350335013","standardPresentationV2":"true","serviceSkuPrices":[{"uniqueId":"5807475289017","skuId":"4969001788585","price":"1190","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289019","skuId":"4969001788585","price":"2090","free":"false","desc":"（顺丰取送）"},{"uniqueId":"5807475289018","skuId":"4969001788585","price":"1090","free":"false"}]}]},"serviceType":"other","allServices":[{"serviceId":"925350335013","name":"清洗养护","desc":"（天猫自营 上门取送 180天随时约）","standardPresentationV2":"true","action":"服务说明","actionLink":"https://pages.tmall.com/wow/fuwu/act/service-intro?serviceItemIdentity=925350335013&serviceLocation=440100&location=440100","groupName":"特色服务","isvService":"false","autoSelect":"false","mustSelect":"false","uniqueServices":[{"uniqueId":"5807475289017","name":"单衣清洗","autoSelect":"false"},{"uniqueId":"5807475289019","name":"单衣清洗2件","autoSelect":"false"},{"uniqueId":"5807475289018","name":"单衣1件清洗","autoSelect":"false"}]}],"name":"特色服务"},"promotionFloatingData":{"promotionText":"秒杀价￥68起","detailPromotionTimeDO":{"warmUpStartTime":"2025-12-06 00:00:00","warmUpEndTime":"2025-12-08 00:00:00","effectiveTime":"2025-12-08 00:00:00","unEffectiveTime":"2025-12-14 23:59:59","promotionType":"BIGMARKDOWN"},"calculateResult":{"discount":"816","quanHouPrice":"59.84起","usedPromotions":[{"promotionType":"600","promotionUniqueId":"124898265560","discount":"816"}]},"skuMoney":{"skuId":"4969001788579","cent":"6800"},"buyEnable":"true"},"skuVertical":{},"params":{"trackParams":{"traceId":"214781ac17656677479397798e0de9","promotionType":"dp-tbmsqzxsqg--online","bizParams_V2":"openBlackCard_current,taobaoShopRecommend_test,guessYouLike_test,video_test","shop_id":"438642374","itemId":"707325316093","detailabtestdetail":"662328_24229.5154_4504.453419_81737.556435_131676.419077_70675","picRouteInfo":"picUrl::O1CN01tJUWMy1VfUHImwYbI_!!0-item_pic.jpg&original::1&picType::p11&channel::detail-item&biz::common&itemId::707325316093&accessTime::1765667748122","detailUniqueId":"c6aeb0c2c91471c05891bb6d58020c07","price1":"68.00","skuId":"4969001788579","price2":"59.84"},"umbParams":{"aliBizName":"YWxpLmNoaW5hLnRtYWxs","detail_categoryid":"30.50011123","aliBizCode":"ali.china.tmall"},"utParam":"[{\"abtest\":\"419077_70675\",\"component\":\"videos\",\"releaseId\":419077,\"module\":\"2020_08\",\"cm\":\"videos_2020_08\",\"experimentId\":23682,\"bucketId\":70675,\"pageName\":[\"Page_Detail\"],\"trackConfigs\":\"[{\\\"eventIds\\\":[2001,2101,2201],\\\"pageNames\\\":[\\\"Page_Detail\\\"]}]\"},{\"abtest\":\"453419_81737\",\"component\":\"sku_float_new\",\"releaseId\":453419,\"module\":\"2020_09\",\"cm\":\"sku_float_new_2020_09\",\"experimentId\":26643,\"bucketId\":81737,\"pageName\":[\"Page_Detail\"],\"trackConfigs\":\"[{\\\"eventIds\\\":[2001,2101,2201],\\\"pageNames\\\":[\\\"Page_Detail\\\"]}]\"},{\"abtest\":\"5154_4504\",\"component\":\"recommendNewVersion\",\"releaseId\":5154,\"module\":\"2018\",\"cm\":\"recommendNewVersion_2018\",\"experimentId\":2021,\"bucketId\":4504,\"trackConfigs\":\"[]\"},{\"abtest\":\"662328_24229\",\"component\":\"2019\",\"releaseId\":662328,\"module\":\"guessYouLike\",\"cm\":\"2019_guessYouLike\",\"experimentId\":9125,\"bucketId\":24229,\"pageName\":[\"detail\"],\"trackConfigs\":\"[{\\\"eventIds\\\":[2001,2101,2201],\\\"pageNames\\\":[\\\"detail\\\"]}]\"},{\"abtest\":\"556435_131676\",\"component\":\"itemAction\",\"releaseId\":556435,\"module\":\"itemAction\",\"cm\":\"itemAction_itemAction\",\"experimentId\":24985,\"bucketId\":131676,\"pageName\":[\"Page_Detail\"],\"trackConfigs\":\"[{\\\"eventIds\\\":[2001,2101,2201],\\\"pageNames\\\":[\\\"Page_Detail\\\"]}]\"}]"},"skuTransform":{"skuContents":[{"img":"//gw.alicdn.com/bao/uploaded/i2/4154522680/O1CN01ecuwYu1VfUHKiNcZ9_!!4154522680.jpg"},{"img":"//gw.alicdn.com/bao/uploaded/i3/4154522680/O1CN01XoYzEv1VfUHGRpnfB_!!4154522680.jpg"},{"img":"//gw.alicdn.com/bao/uploaded/i1/4154522680/O1CN01UdnHEa1VfUHI979Mm_!!4154522680.jpg"},{"img":"//gw.alicdn.com/bao/uploaded/i2/4154522680/O1CN01kWqFcD1VfUHGRpbKe_!!4154522680.jpg"}],"extraText":"共4种颜色可选"},"priceSectionData":{"mainBelt":{"priceBeltImg":"https://gw.alicdn.com/imgextra/i2/O1CN01YT3WFL1JEftozoWI0_!!6000000000997-0-tps-1125-210.jpg","priceBeltColor":"#E60000","bizType":"0","styleType":"1","rightBelt":{"countdown":"0","countDownStatus":"-1","now":"1765667748095","startTime":"null","endTime":"null","logo":"https://gw.alicdn.com/imgextra/i2/O1CN01zrkkZJ1hiUShidld5_!!6000000004311-2-tps-330-72.png","text":"全网低价 限时疯抢","textColor":"#FFFFFF"}},"promotion":{"entranceTip":"查看","items":[{"textColor":"#FD5F20","content":"官方立减12%|减8.16起","type":"default","couponType":"OfficialDiscount","bgImage":"https://gw.alicdn.com/tfs/TB1.dqZSgHqK1RjSZJnXXbNLpXa-40-40.png","startTime":"2025-12-08 00:00:00","endTime":"2025-12-14 23:59:59","scontent":"官方立减12%|减8.16起","sbgImage":"https://gw.alicdn.com/tfs/TB12R2Oerj1gK0jSZFuXXcrHpXa-302-80.png"},{"textColor":"#FD5F20","content":"淘金币可抵2.04元起","type":"default","couponType":"Taojinbi","bgImage":"https://gw.alicdn.com/tfs/TB1.dqZSgHqK1RjSZJnXXbNLpXa-40-40.png","scontent":"淘金币可抵2.04元起","sbgImage":"https://gw.alicdn.com/tfs/TB12R2Oerj1gK0jSZFuXXcrHpXa-302-80.png"},{"textColor":"#FD5F20","content":"购买得积分","type":"default","couponType":"JiFen","bgImage":"https://gw.alicdn.com/tfs/TB1.dqZSgHqK1RjSZJnXXbNLpXa-40-40.png","scontent":"购买得积分","sbgImage":"https://gw.alicdn.com/tfs/TB12R2Oerj1gK0jSZFuXXcrHpXa-302-80.png"}],"entranceUrl":"https://market.m.taobao.com/app/detail-project/detail-pages/pages/quan2020?wh_weex=true","promotionBeltColor":"#E60000"},"price":{"priceMoney":"6800","priceText":"68","priceTail":"起","priceTitle":"秒杀价"},"extraPrice":{"priceMoney":"5984","priceText":"59.84","priceTail":"起","priceTitle":"折后","priceColor":"#E60000","priceBgColor":"#FFFFFF","linkUrl":"https://market.m.taobao.com/app/detail-project/detail-pages/pages/quan2020?wh_weex=true"},"styleTye":"1","bizType":"dp-tbmsqzxsqg--online","priceType":"quanhou_price"},"otherInfo":{"bucketId":"0","systemTime":"1765667748123"},"hybrid":{"shopRecommendItems":{"url":"http://market.m.taobao.com/apps/market/detailrax/recommend-shop-bigpage.html?spm=a2116h.app.0.0.16d957e9U9efo0&wh_weex=true&selfRmdFlag=true&itemId=707325316093&sellerId=4154522680&isShopcardV2=false&detail_v=3.3.2","height":"445","hasSyncTask":"true"}},"diversion":{"detailTopSearch":{"url":"https://s.m.taobao.com/h5entry?g_channelSrp=detail&g_historyOn=true&showText=西裤搭配衬衫男&placeholder=西裤搭配衬衫男&g_csearchdoor_spm=a2141.13130650&itemId=707325316093&detailShopId=438642374&launchMode=android_new_task"}},"layout":{"config":{"dependComponentConfigID":"TB1pw4VcQ9E3KVjSZFGhA319XXa","dependActionConfigID":"TB1Llk4UwHqK1RjSZFEhA3GMXXa","dependThemeConfigID":"TB1MfiMsQyWBuNjy0FphA1ssXXa"},"hierarchyData":{"hierarchy":{"root":"detail","structure":{"detailHome":["detailInfo","divisionDesc","detailDesc","divisionDescRecmd","descRecmd","divisionEnd"],"detail":["navibar","detailHome"],"naviTabs":["naviTabInfo","naviTabRate","naviTabDesc","naviTabDescRecmd"],"navibar":["naviItemLeft","naviItemCenter","naviItemCustom","naviItemRight","naviTabs"]}},"components":{"naviItemCenter":{"name":"naviItemCenter","type":"detailNaviItem","payload":{"accessHint":"图片","positionKey":"center","value":"${item.images[0]}","itemType":"2"},"actions":["naviShowBigPic","utNaviShowBigPic"]},"naviItemCustom":{"name":"naviItemCustom","type":"detailNaviItem","payload":{"accessHint":"购物车","positionKey":"custom","value":"ꁍ","titleSizeRatio":"0.375"},"actions":["utGotoCart","openPageCart"]},"divisionDescRecmd":{"name":"divisionDescRecmd","type":"division","payload":{"iconUrl":"//img.alicdn.com/tps/TB1PGyPOVXXXXa8aXXXXXXXXXXX","height":"5","displayType":"gone","bgcolor":"0xf4f4f4"},"locatorId":"divisionDescRecmd"},"naviTabInfo":{"name":"naviTabInfo","type":"detailNaviTabItem","payload":{"iconUrl":"//img.alicdn.com/tps/TB1ZGAeOFXXXXa6XXXXXXXXXXXX","title":"宝贝"},"actions":["gotoDetailInfo","utClickDetailInfo"],"style":"tab"},"detailHome":{"name":"detailHome","type":"detailHome","locatorId":"detailHome"},"detailInfo":{"name":"detailInfo","type":"detailInfo","locatorId":"detailInfo"},"divisionEnd":{"name":"divisionEnd","type":"division","payload":{"title":"已经到底了","displayType":"text","fgcolor":"0x999999"}},"naviTabDescRecmd":{"name":"naviTabDescRecmd","type":"detailNaviTabItem","payload":{"iconUrl":"//img.alicdn.com/tps/TB1ZGAeOFXXXXa6XXXXXXXXXXXX","title":"推荐"},"actions":["gotoDescRecommend","utClickDescRecommend"],"style":"tab"},"naviTabs":{"name":"naviTabs","type":"detailNaviTabs"},"navibar":{"name":"navibar","type":"detailNavibar"},"naviItemLeft":{"name":"naviItemLeft","type":"detailNaviItem","payload":{"accessHint":"返回","positionKey":"left","value":"ꁽ","titleSizeRatio":"0.375","secondActions":[{"type":"go_detail_home","eventToken":"${eventToken}","domain":"detail"}]},"actions":["gotoPreviewPage"]},"detailDesc":{"name":"detailDesc","type":"detailDesc","payload":{"userId":"${seller.userId}","shopId":"${seller.shopId}","itemId":"${item.itemId}","moduleDescParams":"${item.moduleDescParams}","taobaoDescUrl":"${item.taobaoDescUrl}","taobaoPcDescUrl":"${item.taobaoPcDescUrl}"},"actions":["utExposureDetailDesc"],"style":"detailDesc"},"naviTabRate":{"name":"naviTabRate","type":"detailNaviTabItem","payload":{"iconUrl":"//img.alicdn.com/tps/TB1ZGAeOFXXXXa6XXXXXXXXXXXX","title":"评价","pageName":"Page_DetailComments","secondActions":[{"type":"goto_rate_top","eventToken":"${eventToken}","domain":"detail"}]},"actions":["gotoDetailRate","utClickDetailRate","utExposureDetailRate"],"style":"tab"},"divisionDesc":{"name":"divisionDesc","type":"division","payload":{"iconUrl":"","title":"宝贝详情","displayType":"text","fgcolor":"0x666666"},"locatorId":"divisionDesc"},"naviTabDesc":{"name":"naviTabDesc","type":"detailNaviTabItem","payload":{"iconUrl":"//img.alicdn.com/tps/TB1ZGAeOFXXXXa6XXXXXXXXXXXX","title":"详情"},"actions":["gotoDetailDesc","utClickDetailDesc"],"style":"tab"},"descRecmd":{"name":"descRecmd","type":"descRecmd","payload":{"userId":"${seller.userId}","itemId":"${item.itemId}"},"actions":["utExposureDescRecommend"],"style":"shopRecommend"},"detail":{"name":"detail","type":"detail"},"naviItemRight":{"name":"naviItemRight","type":"detailNaviItem","payload":{"accessHint":"更多","positionKey":"right","value":"ꁭ","titleSizeRatio":"0.375"},"actions":["showMenu"]}},"actions":{"utClickDetailInfo":{"type":"user_track","event":"click","params":{"trackNamePre":"Button-","trackName":"GotoDetailHome"}},"openPageCartForInter":{"type":"open_url","params":{"urlParams":{"itemId":"${item.itemId}","cartfrom":"detail"},"url":"https://pages.tmall.com/wow/trade/act/cart?wh_weex=true"}},"utExposureDetailRate":{"type":"ut_exposure","params":{"spm":"a2141.7631564.2737664","trackPage":"Page_Detail_Show_Detail"}},"utExposureDescRecommend":{"type":"ut_exposure","params":{"spm":"a2141.7631564.2737766","trackPage":"Page_Detail_Show_Recommend"}},"openPageSearch":{"type":"open_url","params":{"urlParams":{"tpId":"${vertical.supermarket.tpId}","cartfrom":"tmall_supermarket"},"url":"https://s.m.tmall.com/m/searchbar.htm"}},"utGotoCart":{"type":"user_track","params":{"trackNamePre":"Button-","trackName":"ShoppingCart"}},"utClickDetailDesc":{"type":"user_track","event":"click","params":{"trackNamePre":"Button-","trackName":"GotoDetailDesc"}},"naviShowBigPic":{"type":"show_big_pic"},"utClickDescRecommend":{"type":"user_track","event":"click","params":{"trackNamePre":"Button-","trackName":"GotoShopRecommend"}},"gotoDetailRate":{"type":"locator","event":"click","params":{"locatorId":"divisionRate"}},"gotoUserTalk":{"type":"locator","event":"click","params":{"locatorId":"userSay"}},"gotoDescRecommend":{"type":"locator","event":"click","params":{"locatorId":"divisionDescRecmd"}},"utClickDetailRate":{"type":"user_track","event":"click","params":{"trackNamePre":"Button-","trackName":"GotoDetailRate"}},"showMenu":{"type":"show_menu"},"utNaviShowBigPic":{"type":"user_track","params":{"trackNamePre":"Button-","trackName":"NaviShowBigPic"}},"utExposureDetailDesc":{"type":"ut_exposure","params":{"spm":"a2141.7631564.1999077549","trackPage":"Page_Detail_Show_ProductDetail","scm":""}},"openPageCart":{"type":"open_url","params":{"urlParams":{"itemId":"${item.itemId}","cartfrom":"detail"},"url":"https://h5.m.taobao.com/awp/base/cart.htm"}},"gotoPreviewPage":{"type":"go_back"},"utGotoSearch":{"type":"user_track","params":{"trackParams":{"tpId":"${vertical.supermarket.tpId}"},"trackNamePre":"Button-","trackName":"Search"}},"gotoDetailInfo":{"type":"locator","event":"click","params":{"locatorId":"detailInfo"}},"gotoDetailDesc":{"type":"locator","event":"click","params":{"locatorId":"divisionDesc"}}}},"detailTemplateData":{"homePage":[{"key":"navi_bar","ruleId":"","id":"navi_bar","ID":"navi_bar"},{"key":"pic_gallery","ruleId":"","id":"pic_gallery","ID":"pic_gallery"},{"key":"sys_list","ruleId":"","children":[{"key":"uniform_price","ruleId":"TB_default"},{"key":"dinamic","ruleId":"tb_detail_price_cheapie_shadow"},{"key":"dinamic","ruleId":"tb_detail_price_ttsale_shadow"},{"key":"dinamic","ruleId":"TB_jhs_main_Belt_shadow"},{"key":"dinamic","ruleId":"TB_detail_handprice_coupon"},{"key":"tip","ruleId":"TB_presaleTmall2"},{"key":"tip","ruleId":"TB_priceTip2"},{"key":"tip","ruleId":"TB_pricedCouponTip2"},{"key":"tip","ruleId":"TB_shipTime2"},{"key":"dinamic","ruleId":"TB_coupon_promotion2019"},{"key":"dinamic","ruleId":"TB_detail_black_card_brand_info"},{"key":"dinamic","ruleId":"TB_detail_brand_info"},{"key":"dinamic","ruleId":"TB_detail_title_normal"},{"key":"dinamic","ruleId":"TB_detail_title_tmallMarket"},{"key":"dinamic","ruleId":"TB_detail_title_xinxuan"},{"key":"dinamic","ruleId":"TB_detail_kernel_params"},{"key":"dinamic","ruleId":"TB_detail_small_activity"},{"key":"dinamic","ruleId":"TB_detail_subInfo_default"},{"key":"dinamic","ruleId":"TB_detail_appointment_store3"},{"key":"dinamic","ruleId":"TB_detail_appointment_store"},{"key":"dinamic","ruleId":"TB_detail_divider"},{"key":"dinamic","ruleId":"TB_detail_entrance_artascope"},{"key":"dinamic","ruleId":"TB_detail_divider"},{"key":"dinamic","ruleId":"TB_detail_pick"},{"key":"dinamic","ruleId":"TB_detail_redpacket"},{"key":"dinamic","ruleId":"TB_detail_coupon"},{"key":"dinamic","ruleId":"TB_detail_promotion"},{"key":"dinamic","ruleId":"TB_detail_new_lingquan"},{"key":"dinamic","ruleId":"TB_detail_share"},{"key":"dinamic","ruleId":"TB_jk_detail_coupon_share"},{"key":"dinamic","ruleId":"TB_detail_tmallfeature"},{"key":"dinamic","ruleId":"TB_detail_cuntao_pinchegou"},{"key":"dinamic","ruleId":"TB_detail_creditbuy"},{"key":"dinamic","ruleId":"TB_detail_divider"},{"key":"dinamic","ruleId":"TB_msfx_tmall_banner"},{"key":"dinamic","ruleId":"TB_detail_sub_logistics"},{"key":"dinamic","ruleId":"TB_detail_tax"},{"key":"dinamic","ruleId":"TB_detail_trade_guarantee"},{"key":"dinamic_o2o","ruleId":"TB_detail_o2o"},{"key":"dinamic","ruleId":"TB_wyg_divider"},{"key":"dinamic","ruleId":"TB_detail_divider"},{"key":"dinamic","ruleId":"TB_guarantee_and_delivery"},{"key":"dinamic","ruleId":"TB_wyg_divider"},{"key":"dinamic","ruleId":"TB_detail_divider"},{"key":"dinamic","ruleId":"TB_detail_divider"},{"key":"dinamic","ruleId":"TB_detail_sku_cross_upgrade"},{"key":"xsku","ruleId":"TB_Default"},{"key":"dinamic","ruleId":"TB_detail_sku_transform"},{"key":"dinamic","ruleId":"TB_detail_product_props"},{"key":"vessel","ruleId":"TB_guess_u_like_promotion"},{"key":"dinamic","ruleId":"TB_detail_miniapp_diliver"},{"key":"dinamic","ruleId":"TB_detail_miniapp_rmd"},{"key":"dinamic","ruleId":"TB_detail_divider_rateLocator"},{"key":"dinamic","ruleId":"TB_detail_comment_empty"},{"key":"dinamic","ruleId":"TB_detail_comment_head"},{"key":"dinamic","ruleId":"TB_detail_comment_tag"},{"key":"dinamic","ruleId":"TB_detail_comment_single_hot"},{"key":"dinamic","ruleId":"TB_detail_buyer_photo"},{"key":"dinamic","ruleId":"TB_detail_ask_all_no_question"},{"key":"dinamic","ruleId":"TB_detail_ask_all_two_questions"},{"key":"dinamic","ruleId":"TB_detail_ask_all_aliMedical"},{"key":"dinamic","ruleId":"TB_detail_vipComment"},{"key":"dinamic","ruleId":"TB_detail_medical_official_case_card"},{"key":"vessel","ruleId":"TB_guess_u_like"},{"key":"dinamic","ruleId":"TB_detail_divider"},{"key":"dinamic","ruleId":"TB_detail_shop"},{"key":"dinamic","ruleId":"TB_detail_endorsement"},{"key":"dinamic_async","ruleId":"TB_tblive_detail"},{"key":"vessel","ruleId":"TB_shop_recommend"}],"id":"main_layout","ID":"main_layout"},{"key":"bottom_bar","ruleId":"TB_promo2019_coupon_after_cart","id":"bottom_bar","ID":"bottom_bar"}]}},"traceDatas":{"dinamic+TB_detail_ask_all_two_questions":{"module":"tb_detail_ask_all_two_questions"},"dinamic+TB_detail_brand_info":{"module":"tb_detail_brand_info"},"dinamic+TB_detail_endorsement":{"module":"tb_detail_endorsement"},"dinamic+TB_detail_tip_presale":{"module":"tb_detail_tip_presale"},"dinamic+TB_detail_subInfo_superMarket":{"module":"tb_detail_subInfo_superMarket"},"dinamic+TB_detail_ask_all_no_question":{"module":"tb_detail_ask_all_no_question"},"dinamic+TB_detail_kernel_params":{"module":"tb_detail_kernel_params"},"dinamic_o2o+TB_detail_o2o":{"module":"TB_detail_o2o"},"dinamic+TB_detail_subInfo_jhs_normal":{"module":"tb_detail_subInfo_jhs_normal"},"dinamic+TB_detail_new_person_bag_banner":{"module":"tb_detail_new_person_bag_banner"},"dinamic+TB_detail_title_tmallMarket":{"module":"tb_detail_title_tmallMarket"},"dinamic+TB_detail_buyer_photo":{"module":"tb_detail_buyer_photo"},"dinamic+TB_detail_subInfo_preSellForTaobaoB":{"module":"tb_detail_subInfo_preSellForTaobaoB"},"dinamic+TB_detail_title_xinxuan":{"module":"tb_detail_title_xinxuan"},"dinamic+TB_detail_subInfo_preSellForTaobaoC":{"module":"tb_detail_subInfo_preSellForTaobaoC"},"dinamic+TB_detail_tmallfeature":{"module":"tb_detail_tmallfeature"},"dinamic+TB_detail_sub_logistics":{"module":"tb_detail_sub_logistics"},"dinamic+TB_detail_price_coupon":{"module":"tb_detail_price_coupon"},"dinamic+TB_detail_coupon":{"module":"tb_detail_coupon"},"dinamic+TB_detail_tip_presale2":{"module":"tb_detail_tip_presale2"},"dinamic+TB_detail_tip_price":{"module":"tb_detail_tip_price"},"dinamic+TB_detail_delivery":{"module":"tb_detail_delivery"},"dinamic+TB_detail_ship_time":{"module":"tb_detail_ship_time"},"dinamic+TB_detail_ask_all_aliMedical":{"module":"tb_detail_ask_all_aliMedical"},"dinamic+TB_detail_priced_coupon":{"module":"tb_detail_priced_coupon"},"dinamic+TB_detail_tax":{"module":"tb_detail_tax"},"dinamic+TB_detail_comment_empty":{"module":"tb_detail_comment_empty"},"dinamic+TB_detail_logistics":{"module":"tb_detail_logistics"}},"modules":[],"debug":{"type":"B","status":"callback_success","from":"malldetailskip","construct":"malldetailskipdata","version":"tcloud","finalUltron":"false","dynamicJsonDataOpt":"false","industryDetail":"false","routeToAlidetail":"false","notDetailV2":"false","mtopStreamOutput":"false"}}"
+}
+],
+"debug": {
+"app": "detailcache",
+"cachedTimestamp": "2025-12-14T07:12:34",
+"host": "detailcache033024063235.unsh.ea119@33.24.63.235",
+"dataFrom": "tair"
+},
+"feature": {
+"isOnLine": "true",
+"tcloudToH5": "true",
+"showSkuProRate": "true"
+},
+"item": {
+"brandValueId": "1954315034",
+"businessId": "default",
+"cartUrl": "https://h5.m.taobao.com/awp/base/cart.htm",
+"categoryId": "50011123",
+"commentCount": "0",
+"countMultiple": [],
+"exParams": {},
+"favcount": "245",
+"h5DescV6": "false",
+"h5ItemUrl": "https://new.m.taobao.com/detail.htm?id=707325316093&hybrid=true",
+"h5moduleDescUrl": "//mdetail.tmall.com/templates/pages/itemDesc?id=707325316093",
+"images": [
+"//img.alicdn.com/imgextra/i3/4154522680/O1CN01tJUWMy1VfUHImwYbI_!!0-item_pic.jpg",
+"//img.alicdn.com/imgextra/i2/4154522680/O1CN01gcmFEl1VfUH8RyJlJ_!!4154522680.jpg",
+"//img.alicdn.com/imgextra/i4/4154522680/O1CN01UxZ54k1VfUHI9CvO5_!!4154522680.jpg",
+"//img.alicdn.com/imgextra/i4/4154522680/O1CN01uDJBPr1VfUHFg1seZ_!!4154522680.jpg",
+"//img.alicdn.com/imgextra/i1/4154522680/O1CN018yH0Jm1VfUHCbCIh0_!!4154522680.jpg"
+],
+"itemId": "707325316093",
+"moduleDescParams": {
+"f": "desc/icoss220234451090d50fd3febadcd0",
+"id": "707325316093"
+},
+"moduleDescUrl": "//hws.m.taobao.com/d/modulet/v5/WItemMouldDesc.do?id=707325316093&f=icoss220234451090d50fd3febadcd0",
+"newTaobaoH5DescUrl": "//market.m.taobao.com/app/detail-project/desc/index.html?id=707325316093&descVersion=7.0&type=0&f=desc/icoss220234451090d50fd3febadcd0&isV6Upgrade=true&integrate=true&sellerType=B",
+"openDecoration": "false",
+"pcADescUrl": "//market.m.taobao.com/app/detail-project/desc/index.html?id=707325316093&descVersion=7.0&type=1&f=desc/icoss220234451090d50fd3febadcd0&sellerType=B",
+"rootCategoryId": "30",
+"skuText": "请选择颜色 尺码 ",
+"subtitle": "",
+"taobaoDescUrl": "https://market.m.taobao.com/app/detail-project/desc/index.html?id=707325316093&descVersion=7.0&type=0&f=desc/icoss220234451090d50fd3febadcd0&sellerType=B",
+"taobaoPcDescUrl": "https://market.m.taobao.com/app/detail-project/desc/index.html?id=707325316093&descVersion=6.0&type=1&f=icoss!0707325316093!11045045604&sellerType=B",
+"title": "男士长袖白衬衫免烫内搭大尖领衬衣2025秋季冰丝垂感长袖衬衫男潮",
+"tmallDescUrl": "//mdetail.tmall.com/templates/pages/desc?id=707325316093"
+},
+"mockData": "{"delivery":{},"trade":{"buyEnable":true,"cartEnable":true},"feature":{"hasSku":true,"showSku":true},"price":{"price":{"priceText":"115.00"}},"skuCore":{"sku2info":{"0":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":1600},"4969001788571":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788574":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788575":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788572":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788573":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788578":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788579":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788576":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788577":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788582":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788583":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788580":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788581":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788586":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788584":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100},"4969001788585":{"price":{"priceMoney":11500,"priceText":"115.00","priceTitle":"价格"},"quantity":100}},"skuItem":{"hideQuantity":true}}}",
+"params": {
+"trackParams": {
+"brandId": "1954315034",
+"BC_type": "B",
+"categoryId": "50011123"
+}
+},
+"props": {
+"groupProps": [
+{
+"基本信息": [
+{
+"版型分类": "宽松"
+},
+{
+"款式细节": "撞色"
+},
+{
+"工艺": "免烫处理"
+},
+{
+"吊牌价": "115元"
+},
+{
+"面料": "牛奶丝"
+},
+{
+"是否商场同款": "否"
+},
+{
+"基础风格": "时尚都市"
+},
+{
+"适用场景": "街拍 约会 聚会 户外 表演 日常 舞台"
+},
+{
+"材质成分": "聚酯纤维100%"
+},
+{
+"适用季节": "秋季"
+},
+{
+"上市年份季节": "2025年秋季"
+},
+{
+"袖长": "长袖"
+},
+{
+"风格": "休闲风"
+},
+{
+"尺码": "2XL M L XL"
+},
+{
+"颜色": "黑色 白色 254白色 254黑色"
+},
+{
+"品牌": "例臣"
+},
+{
+"适用人群": "青年"
+},
+{
+"货号": "39088"
+},
+{
+"功能": "免烫"
+},
+{
+"厚薄": "薄款"
+},
+{
+"领型设计": "尖领"
+},
+{
+"适用性别": "男"
+},
+{
+"衣长类型": "中长款"
+},
+{
+"穿着方式": "套头"
+},
+{
+"图案": "纯色"
+},
+{
+"衣门襟": "扣子"
+}
+]
+}
+]
+},
+"props2": {},
+"propsCut": "版型分类 款式细节 工艺 吊牌价 面料 是否商场同款 基础风格 适用场景 材质成分 适用季节 上市年份季节 袖长 风格 尺码 颜色 品牌 适用人群 货号 功能 厚薄 领型设计 适用性别 衣长类型 穿着方式 图案 衣门襟 ",
+"rate": {
+"goodRateInfo": {
+"goodRateRatio3m": "0.0",
+"goodRateRatioAll": "0.0",
+"rateCnt3m": "0",
+"rateCntAll": "0"
+},
+"invite": {
+"inviteText": "",
+"showInvite": "false"
+},
+"propRate": [],
+"rateList": [
+{
+"blackCardUserUrl": "//img.alicdn.com/tfs/TB1wrG1elv0gK0jSZKbXXbK2FXa-225-96.png",
+"content": "和之前的不一样 不是一个版型的 ",
+"createTimeInterval": "3周前",
+"dateTime": "2025-11-20",
+"feedId": "1289959177170",
+"headPic": "//img.alicdn.com/imgextra/i4/O1CN01GbZNxl26Vzotrjqli_!!6000000007668-2-tps-160-160.png",
+"isVip": "true",
+"memberLevel": "8",
+"skuInfo": "颜色:254黑色[裤子];尺码:XL[145-160斤]",
+"tmallMemberLevel": "0",
+"userName": "匿名买家"
+},
+{
+"content": "满意",
+"createTimeInterval": "1年前",
+"dateTime": "2024-04-20",
+"feedId": "1236656925715",
+"headPic": "//img.alicdn.com/imgextra/i4/O1CN01GbZNxl26Vzotrjqli_!!6000000007668-2-tps-160-160.png",
+"isVip": "true",
+"memberLevel": "8",
+"skuInfo": "颜色:白色[衬衫];尺码:XL[145-160斤]",
+"tmallMemberLevel": "4",
+"userName": "匿名买家"
+}
+],
+"totalCount": "22",
+"utFeedId": "1289959177170_1236656925715"
+},
+"resource": {
+"entrances": {
+"askAll": {
+"icon": "https://img.alicdn.com/tps/TB1tVU6PpXXXXXFaXXXXXXXXXXX-102-60.png",
+"link": "https://meta.m.taobao.com/app/mtb/taobao-ugc/ask/list?disableNav=YES&refId=707325316093",
+"text": "对宝贝有疑问？可以向已买的人求助"
+}
+}
+},
+"seller": {
+"allItemCount": "216",
+"atmophereMask": "true",
+"atmosphereColor": "#ffffff",
+"atmosphereImg": "https://img.alicdn.com/imgextra/i1/4154522680/O1CN01MJ631p1VfURMSTkN3_!!4154522680.jpg",
+"atmosphereMaskColor": "#59000000",
+"backgroundPic": "https://img.alicdn.com/imgextra/i3/O1CN01xTAR63288IdQsnpY9_!!6000000007887-0-tps-750-750.jpg",
+"brandIcon": "//gw.alicdn.com/tfs/TB1bzHljfb2gK0jSZK9XXaEgFXa-368-52.png?getAvatar=avatar",
+"brandIconRatio": "7.3",
+"creditLevel": "12",
+"creditLevelIcon": "//gw.alicdn.com/imgextra/i1/O1CN01VD9Iap25oweneR31D_!!6000000007574-2-tps-120-60.png",
+"dataTypeLabels": [
+{
+"labelCode": "threshold_repurchase_cnt_1y",
+"outputName": "一年回头客3千",
+"processedValue": "3千"
+},
+{
+"labelCode": "threshold_pay_ord_itm_qty_1m",
+"outputName": "月销超4千件宝贝",
+"processedValue": "4千"
+},
+{
+"labelCode": "threshold_shop_open_year_1",
+"outputName": "7年老店",
+"processedValue": "7"
+},
+{
+"labelCode": "threshold_itm_clt_cnt_1y",
+"outputName": "超3万人收藏",
+"processedValue": "3万"
+},
+{
+"labelCode": "good_itm_eva_rate_30d_ef",
+"outputName": "店铺好评率93%",
+"processedValue": "93%"
+}
+],
+"detail4ShopLabelInfo": {
+"dataTypeLabels": [
+{
+"labelCode": "new_itm_cnt_json",
+"outputName": "近30天上新1百件",
+"processedValue": "1百"
+},
+{
+"labelCode": "good_quality_comment_json",
+"outputName": "2百人评价质量很好",
+"processedValue": "[2百, 质量很好]"
+},
+{
+"labelCode": "repurchase_cnt_json",
+"outputName": "近90天5百回头客",
+"processedValue": "5百"
+},
+{
+"labelCode": "vip88_active_visitors_json",
+"outputName": "近30天2万88VIP逛店",
+"processedValue": "2万"
+},
+{
+"labelCode": "items_added_to_cart_json",
+"outputName": "近30天1万件宝贝被加购",
+"processedValue": "1万"
+},
+{
+"labelCode": "items_favorited_json",
+"outputName": "近半年1万件宝贝被收藏",
+"processedValue": "1万"
+},
+{
+"labelCode": "search_visitors_json",
+"outputName": "近30天100万人搜索",
+"processedValue": "100万"
+},
+{
+"labelCode": "users_sharing_shop_json",
+"outputName": "近30天7百用户分享",
+"processedValue": "7百"
+},
+{
+"labelCode": "new_shop_open_year",
+"outputName": "7年老店",
+"processedValue": "7"
+}
+],
+"dsrLabels": [
+{
+"labelCode": "goods_label_1",
+"outputName": "好评率93%",
+"processedValue": "好评率93%"
+},
+{
+"labelCode": "goods_label_1_is_positive",
+"outputName": "Y",
+"processedValue": "Y"
+},
+{
+"labelCode": "lgt_label_1",
+"outputName": "平均21小时发货",
+"processedValue": "平均21小时发货"
+},
+{
+"labelCode": "lgt_label_1_is_positive",
+"outputName": "Y",
+"processedValue": "Y"
+},
+{
+"labelCode": "lgt_label_2",
+"outputName": "平均3天内送达",
+"processedValue": "平均3天内送达"
+},
+{
+"labelCode": "lgt_label_2_is_positive",
+"outputName": "Y",
+"processedValue": "Y"
+},
+{
+"labelCode": "service_label_1",
+"outputName": "平均3小时退款",
+"processedValue": "平均3小时退款"
+},
+{
+"labelCode": "service_label_1_is_positive",
+"outputName": "Y",
+"processedValue": "Y"
+},
+{
+"labelCode": "service_label_1_rank_desc",
+"outputName": "超过83%同行",
+"processedValue": "超过83%同行"
+}
+],
+"featureMap": {
+"nps_value": "4.51",
+"experience_ork": "14",
+"service_level": "高",
+"logistics_ork": "14",
+"service_ork": "78",
+"logistics_value": "4.27",
+"is_db": "Y",
+"nps_star_num_out": "4.5",
+"service_value": "4.86",
+"experience_desc": "14",
+"goods_level": "中",
+"bc_type": "tm",
+"goods_ork": "19",
+"goods_value": "4.3",
+"logistics_level": "低",
+"experience_level": "中"
+},
+"goodDynamicLabels": [],
+"overallScore": "4.51",
+"serviceTypeLabels": [],
+"stylizedTypeLabels": []
+},
+"entranceList": [
+{
+"action": [
+{
+"key": "open_url",
+"params": {
+"url": "//shop.m.taobao.com/shop/shop_index.htm?user_id=4154522680&item_id=707325316093&currentClickTime=-1"
+}
+},
+{
+"key": "user_track",
+"params": {
+"trackName": "Button-NewShopcard-ShopPage",
+"trackParams": {
+"spm": "a.2141.7631564.shoppage"
+}
+}
+}
+],
+"backgroundColor": "#59000000",
+"borderColor": "#59ffffff",
+"text": "进店逛逛",
+"textColor": "#ffffff"
+},
+{
+"action": [
+{
+"key": "open_url",
+"params": {
+"url": "//shop.m.taobao.com/shop/shop_index.htm?user_id=4154522680&item_id=707325316093&shop_navi=allitems"
+}
+},
+{
+"key": "user_track",
+"params": {
+"trackName": "Button-NewShopcard-AllItem",
+"trackParams": {
+"spm": "a.2141.7631564.allitem"
+}
+}
+}
+],
+"backgroundColor": "#59000000",
+"borderColor": "#59ffffff",
+"text": "全部宝贝",
+"textColor": "#ffffff"
+}
+],
+"evaluates": [
+{
+"level": "-1",
+"levelBackgroundColor": "#EEEEEE",
+"levelText": "低",
+"levelTextColor": "#999999",
+"score": "4.7 ",
+"title": "宝贝描述",
+"tmallLevelBackgroundColor": "#EEEEEE",
+"tmallLevelTextColor": "#999999",
+"type": "desc"
+},
+{
+"level": "-1",
+"levelBackgroundColor": "#EEEEEE",
+"levelText": "低",
+"levelTextColor": "#999999",
+"score": "4.7 ",
+"title": "卖家服务",
+"tmallLevelBackgroundColor": "#EEEEEE",
+"tmallLevelTextColor": "#999999",
+"type": "serv"
+},
+{
+"level": "-1",
+"levelBackgroundColor": "#EEEEEE",
+"levelText": "低",
+"levelTextColor": "#999999",
+"score": "4.7 ",
+"title": "物流服务",
+"tmallLevelBackgroundColor": "#EEEEEE",
+"tmallLevelTextColor": "#999999",
+"type": "post"
+}
+],
+"evaluates2": [
+{
+"level": "-1",
+"levelText": "低",
+"levelTextColor": "#f0f0f0",
+"score": "4.7 ",
+"scoreTextColor": "#ffffff",
+"title": "宝贝描述",
+"titleColor": "#ffffff",
+"type": "desc"
+},
+{
+"level": "-1",
+"levelText": "低",
+"levelTextColor": "#f0f0f0",
+"score": "4.7 ",
+"scoreTextColor": "#ffffff",
+"title": "卖家服务",
+"titleColor": "#ffffff",
+"type": "serv"
+},
+{
+"level": "-1",
+"levelText": "低",
+"levelTextColor": "#f0f0f0",
+"score": "4.7 ",
+"scoreTextColor": "#ffffff",
+"title": "物流服务",
+"titleColor": "#ffffff",
+"type": "post"
+}
+],
+"fans": "4.0万",
+"fbt2User": "例臣旗舰店",
+"goodDynamicLabels": [
+{
+"labelCode": "threshold_repurchase_cnt_1y",
+"outputName": "一年回头客3千",
+"processedValue": "3千"
+},
+{
+"labelCode": "threshold_pay_ord_itm_qty_1m",
+"outputName": "月销超4千件宝贝",
+"processedValue": "4千"
+},
+{
+"labelCode": "threshold_avg_got_time_hh_30d",
+"outputName": "平均22小时发货",
+"processedValue": "22"
+}
+],
+"goodRatePercentage": "100.00%",
+"overallScore": "4.51",
+"pcShopUrl": "//shop438642374.taobao.com",
+"rankLevelPic": "//img.alicdn.com/imgextra/i3/O1CN010Zxbrp1riA6Y3jmHa_!!6000000005664-2-tps-133-24.png",
+"sellerNick": "例臣旗舰店",
+"sellerType": "B",
+"serviceTypeLabels": [
+{
+"labelCode": "threshold_avg_got_time_hh_30d",
+"outputName": "平均22小时发货",
+"processedValue": "22"
+},
+{
+"labelCode": "service_score",
+"outputName": "服务体验优秀",
+"processedValue": "4.8"
+},
+{
+"labelCode": "goods_score",
+"outputName": "商品体验良好",
+"processedValue": "4.3"
+},
+{
+"labelCode": "logistics_score",
+"outputName": "物流体验一般",
+"processedValue": "4.2"
+},
+{
+"labelCode": "goods_label_1",
+"outputName": "好评率93%",
+"processedValue": "好评率93%"
+},
+{
+"labelCode": "lgt_label_1",
+"outputName": "平均21小时发货",
+"processedValue": "平均21小时发货"
+},
+{
+"labelCode": "lgt_label_2",
+"outputName": "平均3天内送达",
+"processedValue": "平均3天内送达"
+},
+{
+"labelCode": "service_label_1",
+"outputName": "平均3小时退款",
+"processedValue": "平均3小时退款"
+}
+],
+"shopCard": "本店共216件宝贝在热卖",
+"shopIcon": "//img.alicdn.com/imgextra//f9/31/TB1gmEHD1H2gK0jSZFESuwqMpXa.jpg",
+"shopId": "438642374",
+"shopName": "例臣旗舰店",
+"shopTextColor": "#ffffff",
+"shopType": "B",
+"shopUrl": "tmall://page.tm/shop?item_id=707325316093&shopId=438642374",
+"shopVersion": "0",
+"showShopLinkIcon": "false",
+"simpleShopDOStatus": "1",
+"startsIcon": "https://img.alicdn.com/imgextra/i2/O1CN013FxkJk1Nj8RiWyGO5_!!6000000001605-2-tps-91-14.png",
+"stylizedTypeLabels": [],
+"taoShopUrl": "//shop.m.taobao.com/shop/shop_index.htm?user_id=4154522680&item_id=707325316093",
+"useFallbackImage": "true",
+"userId": "4154522680"
+},
+"skuBase": {
+"props": [
+{
+"name": "尺码",
+"pid": "20509",
+"values": [
+{
+"name": "M 95-130斤",
+"vid": "28315"
+},
+{
+"name": "L 125-145斤",
+"vid": "28316"
+},
+{
+"name": "XL 145-160斤",
+"vid": "28317"
+},
+{
+"name": "2XL 160-180斤",
+"vid": "6145171"
+}
+]
+},
+{
+"name": "颜色",
+"pid": "1627207",
+"values": [
+{
+"image": "//img.alicdn.com/imgextra/i2/4154522680/O1CN01ecuwYu1VfUHKiNcZ9_!!4154522680.jpg",
+"name": "白色 衬衫",
+"vid": "28320"
+},
+{
+"image": "//img.alicdn.com/imgextra/i3/4154522680/O1CN01XoYzEv1VfUHGRpnfB_!!4154522680.jpg",
+"name": "黑色 衬衫",
+"vid": "28341"
+},
+{
+"image": "//img.alicdn.com/imgextra/i1/4154522680/O1CN01UdnHEa1VfUHI979Mm_!!4154522680.jpg",
+"name": "254白色 裤子",
+"vid": "39084227"
+},
+{
+"image": "//img.alicdn.com/imgextra/i2/4154522680/O1CN01kWqFcD1VfUHGRpbKe_!!4154522680.jpg",
+"name": "254黑色 裤子",
+"vid": "27035267"
+}
+]
+}
+],
+"skus": [
+{
+"propPath": "20509:28315;1627207:28320",
+"skuId": "4969001788571"
+},
+{
+"propPath": "20509:28316;1627207:28320",
+"skuId": "4969001788572"
+},
+{
+"propPath": "20509:28317;1627207:28320",
+"skuId": "4969001788573"
+},
+{
+"propPath": "20509:6145171;1627207:28320",
+"skuId": "4969001788574"
+},
+{
+"propPath": "20509:28315;1627207:28341",
+"skuId": "4969001788575"
+},
+{
+"propPath": "20509:28316;1627207:28341",
+"skuId": "4969001788576"
+},
+{
+"propPath": "20509:28317;1627207:28341",
+"skuId": "4969001788577"
+},
+{
+"propPath": "20509:6145171;1627207:28341",
+"skuId": "4969001788578"
+},
+{
+"propPath": "20509:28315;1627207:39084227",
+"skuId": "4969001788579"
+},
+{
+"propPath": "20509:28316;1627207:39084227",
+"skuId": "4969001788580"
+},
+{
+"propPath": "20509:28317;1627207:39084227",
+"skuId": "4969001788581"
+},
+{
+"propPath": "20509:6145171;1627207:39084227",
+"skuId": "4969001788582"
+},
+{
+"propPath": "20509:28315;1627207:27035267",
+"skuId": "4969001788583"
+},
+{
+"propPath": "20509:28316;1627207:27035267",
+"skuId": "4969001788584"
+},
+{
+"propPath": "20509:28317;1627207:27035267",
+"skuId": "4969001788585"
+},
+{
+"propPath": "20509:6145171;1627207:27035267",
+"skuId": "4969001788586"
+}
+]
+},
+"vertical": {
+"askAll": {
+"showNum": "2",
+"askIcon": "https://img.alicdn.com/tps/TB1tVU6PpXXXXXFaXXXXXXXXXXX-102-60.png",
+"askText": "宝贝好不好，问问已买的人",
+"modelList": null,
+"answerText": null,
+"questNum": "0",
+"linkUrl": "https://meta.m.taobao.com/app/mtb/taobao-ugc/ask/list?disableNav=YES&refId=707325316093",
+"model4XList": null,
+"title": "问大家",
+"answerIcon": null
+}
+}
+}
+}
+联系方式：@some1899
