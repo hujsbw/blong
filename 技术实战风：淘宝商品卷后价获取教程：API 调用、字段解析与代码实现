@@ -1,0 +1,852 @@
+在淘宝电商数据采集、竞品价格监控、自动化选品开发中，商品卷后价是最具参考价值的核心数据。不同于固定的商品原价，卷后价包含平台券、店铺券、满减活动等动态优惠，官方API不会直接返回最终到手价，也是开发中最容易出现数据偏差、字段缺失的难点。本文基于淘宝官方TOP接口，从权限配置、API调用、核心字段解析到代码落地，完整实战教学，帮助开发者精准获取商品实时卷后价。
+
+（配图1：淘宝开放平台营销价格权限配置界面截图）
+
+一、接口前置配置
+常规商品详情权限仅能获取原价、活动价，无法读取优惠抵扣数据。想要精准计算卷后价，需在淘宝开放平台完成双重权限配置：一是开通 taobao.item.get 商品详情基础权限，二是申请营销优惠、优惠券价格读取权限。同时保存好AppKey、AppSecret核心凭证，接口调用依赖官方MD5签名规则，凭证错误会直接导致请求失败。
+
+二、核心价格字段深度解析
+很多开发者卷后价计算不准，根源是字段混淆。官方接口核心价格字段区分明确：price为商品挂牌原价，promotion_price为活动预售价，coupon_price为优惠券抵扣金额，也是计算卷后价的核心字段。通用精准计算公式：实时卷后价 = 活动价/原价 - 优惠券抵扣金额，兼容单券、多券叠加的常规电商优惠场景。
+
+三、完整实战代码实现
+以下Python代码封装官方签名算法、接口请求、字段解析与卷后价自动计算，兼容主流商品场景，自带异常捕获，可直接部署使用。
+
+import requests
+import time
+import hashlib
+
+# 官方接口凭证配置
+APP_KEY = "你的AppKey"
+APP_SECRET = "你的AppSecret"
+GATEWAY_URL = "https://gw.api.taobao.com/router/rest"
+
+# 生成TOP标准MD5签名
+def create_sign(params):
+    sorted_params = sorted(params.items())
+    sign_str = "".join([k + v for k, v in sorted_params]) + APP_SECRET
+    return hashlib.md5(sign_str.encode()).hexdigest().upper()
+
+# 获取并计算商品卷后价
+def get_taobao_coupon_price(item_id):
+    params = {
+        "app_key": APP_KEY,
+        "method": "taobao.item.get",
+        "timestamp": str(int(time.time())),
+        "format": "json",
+        "v": "2.0",
+        "num_iid": item_id
+    }
+    params["sign"] = create_sign(params)
+    res = requests.get(GATEWAY_URL, params=params, timeout=10)
+    data = res.json()
+    item_info = data.get("item", {})
+    
+    # 字段解析与价格计算
+    original_price = float(item_info.get("price", 0))
+    coupon_price = float(item_info.get("coupon_price", 0))
+    final_price = round(original_price - coupon_price, 2)
+    
+    print(f"商品原价：{original_price} 元")
+    print(f"优惠券抵扣：{coupon_price} 元")
+    print(f"实时卷后价：{final_price} 元")
+
+if __name__ == "__main__":
+    get_taobao_coupon_price("替换为真实商品ID")
+（配图2：代码运行成功、价格数据正常输出控制台截图）
+
+四、常见报错与优化方案
+实战中高频问题：优惠字段为空，多为营销权限未开通；价格计算异常，多是参数排序错误、签名未大写。批量采集场景下，建议添加0.2-0.5秒请求间隔，规避接口限流，同时对无优惠商品做容错判断，避免程序报错终止。
+
+本方案基于官方合规接口，相比爬虫逆向更稳定安全，可直接用于商品价格监控、批量数据分析、电商自动化运营等业务场景。
+
+代码如下：
+{
+"code": 0,
+"data": {
+"seller": {
+"userId": "3669578932",
+"shopId": "542636791",
+"shopName": "宝茵菲旗舰店",
+"shopUrl": "tmall://page.tm/shop?item_id=853350484682&shopId=542636791",
+"taoShopUrl": "//shop.m.taobao.com/shop/shop_index.htm?user_id=3669578932&item_id=853350484682",
+"shopIcon": "https://img.alicdn.com/imgextra/i3/3669578932/O1CN01qLZzxB2FquZbLaYOD_!!3669578932-0-shopmanager.jpg",
+"fans": "17.1万",
+"allItemCount": "4634",
+"newItemCount": "412",
+"showShopLinkIcon": false,
+"shopCard": "掌柜近期上新412件宝贝，速览",
+"sellerType": "B",
+"shopType": "B",
+"evaluates": [
+{
+"title": "宝贝描述",
+"score": "4.7 ",
+"type": "desc",
+"level": "-1",
+"levelText": "低",
+"levelTextColor": "#999999",
+"levelBackgroundColor": "#EEEEEE",
+"tmallLevelTextColor": "#999999",
+"tmallLevelBackgroundColor": "#EEEEEE"
+},
+{
+"title": "卖家服务",
+"score": "4.8 ",
+"type": "serv",
+"level": "-1",
+"levelText": "低",
+"levelTextColor": "#999999",
+"levelBackgroundColor": "#EEEEEE",
+"tmallLevelTextColor": "#999999",
+"tmallLevelBackgroundColor": "#EEEEEE"
+},
+{
+"title": "物流服务",
+"score": "4.8 ",
+"type": "post",
+"level": "-1",
+"levelText": "低",
+"levelTextColor": "#999999",
+"levelBackgroundColor": "#EEEEEE",
+"tmallLevelTextColor": "#999999",
+"tmallLevelBackgroundColor": "#EEEEEE"
+}
+],
+"evaluates2": [
+{
+"titleColor": "#ffffff",
+"scoreTextColor": "#ffffff",
+"title": "宝贝描述",
+"score": "4.7 ",
+"type": "desc",
+"level": "-1",
+"levelText": "低",
+"levelTextColor": "#f0f0f0"
+},
+{
+"titleColor": "#ffffff",
+"scoreTextColor": "#ffffff",
+"title": "卖家服务",
+"score": "4.8 ",
+"type": "serv",
+"level": "-1",
+"levelText": "低",
+"levelTextColor": "#f0f0f0"
+},
+{
+"titleColor": "#ffffff",
+"scoreTextColor": "#ffffff",
+"title": "物流服务",
+"score": "4.8 ",
+"type": "post",
+"level": "-1",
+"levelText": "低",
+"levelTextColor": "#f0f0f0"
+}
+],
+"sellerNick": "宝茵菲旗舰店",
+"creditLevel": "15",
+"creditLevelIcon": "//gw.alicdn.com/tfs/TB1QoJUIwmTBuNjy1XbXXaMrVXa-84-36.png?getAvatar=avatar",
+"brandIcon": "//gw.alicdn.com/tfs/TB1lkPnjeH2gK0jSZFEXXcqMpXa-368-52.png?getAvatar=avatar",
+"brandIconRatio": "7.3",
+"starts": "2018-01-13 09:28:42",
+"goodRatePercentage": "100.00%",
+"fbt2User": "宝茵菲旗舰店",
+"simpleShopDOStatus": "1",
+"shopVersion": "0",
+"atmosphereImg": "https://img.alicdn.com/imgextra/i3/3669578932/O1CN01LURZKb2FquBu0xq4s_!!3669578932.jpg",
+"atmosphereColor": "#ffffff",
+"shopTextColor": "#ffffff",
+"entranceList": [
+{
+"text": "进店逛逛",
+"textColor": "#ffffff",
+"borderColor": "#59ffffff",
+"backgroundColor": "#59000000",
+"action": [
+{
+"key": "open_url",
+"params": {
+"url": "//shop.m.taobao.com/shop/shop_index.htm?user_id=3669578932&item_id=853350484682&currentClickTime=-1"
+}
+},
+{
+"key": "user_track",
+"params": {
+"trackParams": {
+"spm": "a.2141.7631564.shoppage"
+},
+"trackName": "Button-NewShopcard-ShopPage"
+}
+}
+]
+},
+{
+"text": "全部宝贝",
+"textColor": "#ffffff",
+"borderColor": "#59ffffff",
+"backgroundColor": "#59000000",
+"action": [
+{
+"key": "open_url",
+"params": {
+"url": "//shop.m.taobao.com/shop/shop_index.htm?user_id=3669578932&item_id=853350484682&shop_navi=allitems"
+}
+},
+{
+"key": "user_track",
+"params": {
+"trackParams": {
+"spm": "a.2141.7631564.allitem"
+},
+"trackName": "Button-NewShopcard-AllItem"
+}
+}
+]
+}
+],
+"atmophereMask": true,
+"atmosphereMaskColor": "#59000000"
+},
+"propsCut": "品牌 是否一次性 上市年份季节 质地 是否商场同款 适用人群 货号 手套款式 适用场景 厚度等级 类别 尺码 颜色分类 ",
+"item": {
+"itemId": "853350484682",
+"title": "mikko联名可爱卡通猫咪毛绒手套女冬季翻盖半指触屏加厚骑行保暖",
+"subtitle": "",
+"images": [
+"//img.alicdn.com/imgextra/i4/3669578932/O1CN01PJICYh2FqufXUqgTG_!!4611686018427385012-0-item_pic.jpg",
+"//img.alicdn.com/imgextra/i2/3669578932/O1CN01jDCnW82FqufYJ1mbh_!!3669578932.jpg",
+"//img.alicdn.com/imgextra/i4/3669578932/O1CN01YofORb2FqufZeD874_!!3669578932.jpg",
+"//img.alicdn.com/imgextra/i1/3669578932/O1CN01mTUnn42FqufXGLdPT_!!3669578932.jpg",
+"//img.alicdn.com/imgextra/i1/3669578932/O1CN014NqSPL2FqufZ6bXgK_!!3669578932.jpg"
+],
+"categoryId": "50010410",
+"rootCategoryId": "50010404",
+"brandValueId": "1675835050",
+"skuText": "请选择尺码/颜色分类",
+"countMultiple": [],
+"exParams": {},
+"commentCount": "900",
+"favcount": "8142",
+"taobaoDescUrl": "//market.m.taobao.com/app/detail-project/desc/index.html?id=853350484682&descVersion=7.0&type=0&f=desc/icoss3708064884e69350c09f6ee976&sellerType=B",
+"tmallDescUrl": "//mdetail.tmall.com/templates/pages/desc?id=853350484682",
+"taobaoPcDescUrl": "//market.m.taobao.com/app/detail-project/desc/index.html?id=853350484682&descVersion=6.0&type=1&f=icoss!0853350484682!11114224816&sellerType=B",
+"pcADescUrl": "//market.m.taobao.com/app/detail-project/desc/index.html?id=853350484682&descVersion=7.0&type=1&f=desc/icoss3708064884e69350c09f6ee976&sellerType=B",
+"moduleDescUrl": "//hws.m.taobao.com/d/modulet/v5/WItemMouldDesc.do?id=853350484682&f=icoss3708064884e69350c09f6ee976",
+"openDecoration": false,
+"moduleDescParams": {
+"f": "desc/icoss3708064884e69350c09f6ee976",
+"id": "853350484682"
+},
+"h5moduleDescUrl": "//mdetail.tmall.com/templates/pages/itemDesc?id=853350484682",
+"cartUrl": "https://h5.m.taobao.com/awp/base/cart.htm",
+"h5ItemUrl": "https://new.m.taobao.com/detail.htm?id=853350484682&hybrid=true",
+"extraMap": {},
+"vagueSellCount": "2000+",
+"showShopActivitySize": "2",
+"containerDimension": "1:1",
+"descType": "2",
+"infoText": {},
+"skuInfo": "尺码/颜色分类",
+"spuId": "7792056602",
+"sellCount": "2000+"
+},
+"debug": {
+"host": "detail033063105028.center.na620@33.63.105.28",
+"app": "alidetail"
+},
+"resource": {
+"indexCouponData": {},
+"entrances": {},
+"entrancesBizsContent": "",
+"floatView": {},
+"coupon": {},
+"promsCalcInfo": {
+"cheapestMoney": "0",
+"hasCoupon": "false",
+"needReqCouDan": "false"
+}
+},
+"vertical": {
+"askAll": {
+"modelList": [
+{
+"askText": "你们的绳子短吗",
+"answerCountText": "4个回答",
+"firstAnswer": "不短"
+},
+{
+"askText": "会漏风嘛？？",
+"answerCountText": "3个回答",
+"firstAnswer": "不会"
+}
+],
+"questNum": "25",
+"linkUrl": "https://meta.m.taobao.com/app/mtb/taobao-ugc/ask/list?disableNav=YES&refId=853350484682",
+"askIcon": "https://img.alicdn.com/tps/TB1tVU6PpXXXXXFaXXXXXXXXXXX-102-60.png",
+"askText": "你们的绳子短吗",
+"answerText": "不短",
+"answerIcon": "https://img.alicdn.com/tps/TB1Z7c2LXXXXXXmaXXXXXXXXXXX-132-42.png",
+"title": "问大家(25)",
+"showNum": "2"
+},
+"freshFood": {
+"nationalFlag": "//g.alicdn.com/mui/flag-img/circle@2x/CN.png"
+},
+"tmallLeaseData": {
+"rentOfficialPriceFen": "0",
+"rentGuaranteePriceFen": "0",
+"zhiMaSigned": "false"
+},
+"degrade": "Sugar"
+},
+"params": {
+"trackParams": {
+"brandId": "1675835050",
+"BC_type": "B",
+"categoryId": "50010410"
+}
+},
+"props": {
+"groupProps": [
+{
+"基本信息": [
+{
+"品牌": "宝茵菲"
+},
+{
+"是否一次性": "否"
+},
+{
+"上市年份季节": "2024年冬季"
+},
+{
+"质地": "其他"
+},
+{
+"是否商场同款": "否"
+},
+{
+"适用人群": "少年 青年：20-39岁"
+},
+{
+"货号": "sp11221"
+},
+{
+"手套款式": "半指手套"
+},
+{
+"适用场景": "骑车 居家"
+},
+{
+"厚度等级": "厚"
+},
+{
+"类别": "女"
+},
+{
+"尺码": "均码"
+},
+{
+"颜色分类": "可爱猫咪 kitty猫咪-翻盖手套 米白兔子-翻盖手套 卡其小熊-翻盖手套 蛋糕小熊-翻盖手套 小蜜蜂-翻盖手套 小熊-翻盖手套 萝卜小兔-翻盖手套 可爱熊猫-翻盖手套 粉色耳机-翻盖手套 米白小狗-翻盖手套"
+}
+]
+}
+]
+},
+"mockData": "{"delivery":{},"trade":{"buyEnable":true,"cartEnable":true},"feature":{"hasSku":true,"showSku":true},"price":{"price":{"priceText":"30.80"}},"skuCore":{"sku2info":{"0":{"price":{"priceMoney":3080,"priceText":"30.80","priceTitle":"价格"},"quantity":1100},"5819082434495":{"price":{"priceMoney":3580,"priceText":"35.80","priceTitle":"价格"},"quantity":100},"5945564672063":{"price":{"priceMoney":3580,"priceText":"35.80","priceTitle":"价格"},"quantity":100},"6152768518520":{"price":{"priceMoney":2480,"priceText":"24.80","priceTitle":"价格"},"quantity":100},"6152768518521":{"price":{"priceMoney":2480,"priceText":"24.80","priceTitle":"价格"},"quantity":100},"6152768518517":{"price":{"priceMoney":1780,"priceText":"17.80","priceTitle":"价格"},"quantity":100},"6152768518518":{"price":{"priceMoney":1780,"priceText":"17.80","priceTitle":"价格"},"quantity":100},"6152768518519":{"price":{"priceMoney":2480,"priceText":"24.80","priceTitle":"价格"},"quantity":100},"5945564672065":{"price":{"priceMoney":3580,"priceText":"35.80","priceTitle":"价格"},"quantity":100},"5945564672064":{"price":{"priceMoney":3080,"priceText":"30.80","priceTitle":"价格"},"quantity":100},"5945564672067":{"price":{"priceMoney":3580,"priceText":"35.80","priceTitle":"价格"},"quantity":100},"5945564672066":{"price":{"priceMoney":3580,"priceText":"35.80","priceTitle":"价格"},"quantity":100}},"skuItem":{"hideQuantity":true}}}",
+"feature": {
+"tcloudToH5": true,
+"showSkuProRate": true
+},
+"rate": {
+"totalCount": "900+",
+"invite": {
+"showInvite": "false",
+"inviteText": ""
+},
+"rateList": [
+{
+"content": "挺厚的，就是这个样子，然后有一点线头，但是我觉得套手指那个太短了，我的手伸直的话会露一截，它是有绳子连在一起的",
+"userName": "匿家",
+"headPic": "//gtms03.alicdn.com/tps/i3/TB1yeWeIFXXXXX5XFXXuAZJYXXX-210-210.png_80x80.jpg",
+"memberLevel": "2",
+"dateTime": "2025-11-23",
+"createTimeInterval": "1个月前",
+"skuInfo": "尺码:均码;颜色分类:可爱猫咪",
+"tmallMemberLevel": "0",
+"isVip": "false",
+"feedId": "1290323046177"
+},
+{
+"content": "是送给好朋友的，她很喜欢还把这个小手套画进去了 不知道怎么形容看见那个画的感受，因为我怕来不及在生日前给她一起寄过去，所以来不及试着戴一下，只是依稀记得摸得软软的，像我家小猫的毛毛一样，对了，小猫也是我们一起养的！看她那么喜欢还画进作品里面我也很开心，比自己收到还开心！谢谢卖家有做这么可爱的手套，有点遗憾没有洗好给她送过去，但是手套收到的时候是没有异味的，只是我想让它变得香香的，手套特别可爱，希望买到它的人也可以过一个很温暖的冬天！",
+"userName": "lo",
+"headPic": "//sns.m.taobao.com/avatar/sns/user/flag/sns_logo?type=taobao&kn=wwc_tb_11&bizCode=taobao_avatar&userFlag=RAzN84GK7wS8eNqQjyyyCXYiRnEFKCuykxE6uiJwtaRHToFWYyAzt7tV329ATLADpizkG6DrVDvctv9eR7zJSzKTgwib5pK4LR88CWqfp5Wug3LDJmhhWBvHo48WbF95EXWy5R7KwkYFsLffNwFwc1tWFKo7B6A387zNntZ",
+"memberLevel": "4",
+"dateTime": "2025-11-24",
+"createTimeInterval": "1个月前",
+"skuInfo": "尺码:均码;颜色分类:可爱猫咪",
+"tmallMemberLevel": "0",
+"isVip": "true",
+"feedId": "1290279761710"
+}
+],
+"propRate": [],
+"utFeedId": "1290323046177_1290279761710"
+},
+"props2": {},
+"skuBase": {
+"skus": [
+{
+"skuId": "5819082434495",
+"propPath": "20509:28383;1627207:3417717"
+},
+{
+"skuId": "5945564672064",
+"propPath": "20509:28383;1627207:40903655332"
+},
+{
+"skuId": "5945564672065",
+"propPath": "20509:28383;1627207:40903655333"
+},
+{
+"skuId": "5945564672066",
+"propPath": "20509:28383;1627207:40903655334"
+},
+{
+"skuId": "5945564672067",
+"propPath": "20509:28383;1627207:40903655335"
+},
+{
+"skuId": "5945564672063",
+"propPath": "20509:28383;1627207:41047302382"
+},
+{
+"skuId": "6152768518517",
+"propPath": "20509:28383;1627207:41092355157"
+},
+{
+"skuId": "6152768518518",
+"propPath": "20509:28383;1627207:41724597955"
+},
+{
+"skuId": "6152768518519",
+"propPath": "20509:28383;1627207:41724597956"
+},
+{
+"skuId": "6152768518520",
+"propPath": "20509:28383;1627207:41724597957"
+},
+{
+"skuId": "6152768518521",
+"propPath": "20509:28383;1627207:41724597958"
+}
+],
+"props": [
+{
+"pid": "20509",
+"name": "尺码",
+"values": [
+{
+"vid": "28383",
+"name": "均码"
+}
+]
+},
+{
+"pid": "1627207",
+"name": "颜色分类",
+"values": [
+{
+"vid": "3417717",
+"name": "可爱猫咪",
+"image": "//img.alicdn.com/imgextra/i1/3669578932/O1CN01rr3Cme2FqufXUjy9f_!!3669578932.jpg"
+},
+{
+"vid": "40903655332",
+"name": "kitty猫咪-翻盖手套",
+"image": "//img.alicdn.com/imgextra/i3/3669578932/O1CN01pUszzn2Fqukq9NxcZ_!!3669578932.jpg"
+},
+{
+"vid": "40903655333",
+"name": "米白兔子-翻盖手套",
+"image": "//img.alicdn.com/imgextra/i2/3669578932/O1CN01xtgmiE2FqukmB9UL9_!!3669578932.jpg"
+},
+{
+"vid": "40903655334",
+"name": "卡其小熊-翻盖手套",
+"image": "//img.alicdn.com/imgextra/i2/3669578932/O1CN01ZWZMHL2FquknVPii1_!!3669578932.jpg"
+},
+{
+"vid": "40903655335",
+"name": "蛋糕小熊-翻盖手套",
+"image": "//img.alicdn.com/imgextra/i4/3669578932/O1CN01NV7DKJ2FqukibKK7v_!!3669578932.jpg"
+},
+{
+"vid": "41047302382",
+"name": "小蜜蜂-翻盖手套",
+"image": "//img.alicdn.com/imgextra/i2/3669578932/O1CN01nXR2IN2Fqug2Gqda0_!!3669578932.jpg"
+},
+{
+"vid": "41092355157",
+"name": "小熊-翻盖手套",
+"image": "//img.alicdn.com/imgextra/i4/3669578932/O1CN01VPHxon2FqukpVfOFx_!!3669578932.jpg"
+},
+{
+"vid": "41724597955",
+"name": "萝卜小兔-翻盖手套",
+"image": "//img.alicdn.com/imgextra/i4/3669578932/O1CN01m30pK92FquljjLmVz_!!3669578932.jpg"
+},
+{
+"vid": "41724597956",
+"name": "可爱熊猫-翻盖手套",
+"image": "//img.alicdn.com/imgextra/i2/3669578932/O1CN01r4A0Ko2Fquecm2paG_!!3669578932.jpg"
+},
+{
+"vid": "41724597957",
+"name": "粉色耳机-翻盖手套",
+"image": "//img.alicdn.com/imgextra/i1/3669578932/O1CN01YQPNVj2Fqug04by17_!!3669578932.jpg"
+},
+{
+"vid": "41724597958",
+"name": "米白小狗-翻盖手套",
+"image": "//img.alicdn.com/imgextra/i1/3669578932/O1CN01XV7ncY2FquljYjMj1_!!3669578932.jpg"
+}
+]
+}
+]
+},
+"traceId": "213f691c17677827078353425e12f6",
+"trade": {
+"useWap": "false",
+"cartJumpUrl": "https://h5.m.taobao.com/awp/base/cart.htm",
+"isWap": "false",
+"tradeParams": {},
+"outerCartParam": {},
+"buyParam": {
+"areaId": "421300"
+},
+"cartEnable": "true",
+"buyEnable": "true",
+"cartParam": {
+"areaId": "421300"
+},
+"cartConfirmEnable": "true"
+},
+"price": {
+"shopProm": [
+{
+"activityId": "0",
+"iconText": "积分",
+"title": "购买可得8积分",
+"content": [
+"购买可得8积分"
+],
+"type": "5"
+}
+],
+"transmitPrice": {
+"priceText": "16.8-34.8",
+"sugProm": "false"
+},
+"shopPromTitle": "促销",
+"superMarketShopProm": [],
+"priceTag": [
+{
+"text": "新品促销",
+"bigmarkdownTag": "false"
+}
+],
+"newExtraPrices": [
+{
+"priceText": "17.8-35.8",
+"priceTitle": "价格",
+"showTitle": "true",
+"lineThrough": "true",
+"sugProm": "false"
+}
+],
+"extraPrices": [
+{
+"priceText": "17.8-35.8",
+"priceTitle": "价格",
+"showTitle": "true",
+"lineThrough": "true",
+"sugProm": "false"
+}
+],
+"price": {
+"priceText": "16.8-34.8",
+"sugProm": "false"
+}
+},
+"consumerProtection": {
+"passValue": "none",
+"serviceProtection": {
+"basicService": {
+"id": "204",
+"name": "基础保障",
+"services": [
+{
+"serviceId": "2979",
+"name": "极速退款",
+"desc": [
+"满足相应条件时，诚信用户在退货寄出后，享受极速退款到账"
+],
+"icon": "//img.alicdn.com/tfs/TB1_YjSjeL2gK0jSZPhXXahvXXa-54-54.png",
+"priority": "6505"
+},
+{
+"serviceId": "2973",
+"name": "七天无理由退换",
+"desc": [
+"满足相应条件时，消费者可申请 “七天无理由退换货”"
+],
+"icon": "//img.alicdn.com/tfs/TB1_YjSjeL2gK0jSZPhXXahvXXa-54-54.png",
+"priority": "5130"
+}
+]
+}
+},
+"strength": "normal",
+"items": [
+{
+"serviceId": "2979",
+"title": "极速退款",
+"desc": "满足相应条件时，诚信用户在退货寄出后，享受极速退款到账",
+"type": "0",
+"priority": "6505"
+},
+{
+"serviceId": "2973",
+"title": "七天无理由退换",
+"desc": "满足相应条件时，消费者可申请 “七天无理由退换货”",
+"type": "0",
+"priority": "5130"
+}
+],
+"params": "204:2979,2973"
+},
+"skuCore": {
+"skuItem": {
+"hideQuantity": "false",
+"showAddress": "false",
+"location": "随州市"
+},
+"atmosphere": {},
+"sku2info": {
+"0": {
+"price": {
+"priceMoney": "1680",
+"priceText": "16.8-34.8",
+"showTitle": "false",
+"sugProm": "false"
+},
+"quantity": "200",
+"quantityText": "有货"
+},
+"6152768518519": {
+"price": {
+"priceMoney": "2380",
+"priceText": "23.8",
+"showTitle": "false",
+"sugProm": "false"
+},
+"quantity": "200",
+"logisticsTime": "预计15小时内发货|承诺48小时内发货",
+"quantityText": "有货"
+},
+"5945564672064": {
+"price": {
+"priceMoney": "2980",
+"priceText": "29.8",
+"showTitle": "false",
+"sugProm": "false"
+},
+"quantity": "200",
+"logisticsTime": "预计15小时内发货|承诺48小时内发货",
+"quantityText": "有货"
+},
+"6152768518518": {
+"price": {
+"priceMoney": "1680",
+"priceText": "16.8",
+"showTitle": "false",
+"sugProm": "false"
+},
+"quantity": "0",
+"logisticsTime": "预计15小时内发货|承诺48小时内发货",
+"quantityText": "无货"
+},
+"5945564672063": {
+"price": {
+"priceMoney": "3480",
+"priceText": "34.8",
+"showTitle": "false",
+"sugProm": "false"
+},
+"quantity": "0",
+"logisticsTime": "预计15小时内发货|承诺48小时内发货",
+"quantityText": "无货"
+},
+"6152768518517": {
+"price": {
+"priceMoney": "1680",
+"priceText": "16.8",
+"showTitle": "false",
+"sugProm": "false"
+},
+"quantity": "200",
+"logisticsTime": "预计15小时内发货|承诺48小时内发货",
+"quantityText": "有货"
+},
+"5945564672066": {
+"price": {
+"priceMoney": "3480",
+"priceText": "34.8",
+"showTitle": "false",
+"sugProm": "false"
+},
+"quantity": "200",
+"logisticsTime": "预计15小时内发货|承诺48小时内发货",
+"quantityText": "有货"
+},
+"5819082434495": {
+"price": {
+"priceMoney": "3480",
+"priceText": "34.8",
+"showTitle": "false",
+"sugProm": "false"
+},
+"quantity": "200",
+"logisticsTime": "预计15小时内发货|承诺48小时内发货",
+"quantityText": "有货"
+},
+"5945564672065": {
+"price": {
+"priceMoney": "3480",
+"priceText": "34.8",
+"showTitle": "false",
+"sugProm": "false"
+},
+"quantity": "200",
+"logisticsTime": "预计15小时内发货|承诺48小时内发货",
+"quantityText": "有货"
+},
+"5945564672067": {
+"price": {
+"priceMoney": "3480",
+"priceText": "34.8",
+"showTitle": "false",
+"sugProm": "false"
+},
+"quantity": "200",
+"logisticsTime": "预计15小时内发货|承诺48小时内发货",
+"quantityText": "有货"
+},
+"6152768518521": {
+"price": {
+"priceMoney": "2380",
+"priceText": "23.8",
+"showTitle": "false",
+"sugProm": "false"
+},
+"quantity": "0",
+"logisticsTime": "预计15小时内发货|承诺48小时内发货",
+"quantityText": "无货"
+},
+"6152768518520": {
+"price": {
+"priceMoney": "2380",
+"priceText": "23.8",
+"showTitle": "false",
+"sugProm": "false"
+},
+"quantity": "200",
+"logisticsTime": "预计15小时内发货|承诺48小时内发货",
+"quantityText": "有货"
+}
+},
+"abSwitch": {
+"enableShowPic": "false",
+"enableShowProtection": "false"
+}
+},
+"delivery": {
+"completedTo": "随州市",
+"overseaContraBandFlag": "false",
+"showAreaChooser": "true",
+"areaSell": "false",
+"to": "随州市",
+"areaId": "421300",
+"postage": "快递: 免运费",
+"from": "浙江金华",
+"extras": {
+"PostTime": {
+"text": "预计15小时内发货|承诺48小时内发货"
+},
+"ReceiveTime": {
+"text": "预计15小时内发货|承诺48小时内发货"
+}
+}
+},
+"mainItemInfo": {
+"afterCouponAmountPrice": "14.8",
+"auctionIconUrl": "https://gw.alicdn.com/imgextra/i2/O1CN01QlJ0GY1pi2oZ8oXaJ_!!6000000005393-2-tps-72-36.png",
+"hasSubsidy": "false",
+"itemId": "853350484682",
+"itemName": "mikko联名可爱卡通猫咪毛绒手套女冬季翻盖半指触屏加厚骑行保暖",
+"pic": "//img.alicdn.com/bao/uploaded/i4/3669578932/O1CN01PJICYh2FqufXUqgTG_!!4611686018427385012-0-item_pic.jpg",
+"pretaobaoAmt": "0.22",
+"promotionModel": {
+"promotiontaobaoModel": {
+"pretaobaoAmt": "0.22",
+"pretaobaoAmtDisplay": "￥0.22",
+"pretaobaoRate": "1.50",
+"pretaobaoRateDisplay": "1.50%"
+},
+"promotionPriceModel": {
+"promotionPrice": "14.80",
+"promotionPriceDescDisplay": "券后价",
+"promotionPriceDisplay": "￥14.80",
+"zkPrice": "16.80",
+"zkPriceDisplay": "￥16.80"
+},
+"promotionTagModel": [
+{
+"tagDisplay": "2元",
+"tagType": "COUPON",
+"tagTypeDisplay": "商品券"
+},
+{
+"tagDisplay": "包邮",
+"tagType": "POST_FREE",
+"tagTypeDisplay": "POST_FREE"
+}
+],
+"selectedCoupon": "false"
+},
+"scm": "taobao.0.0.taobao_markting-page_0",
+"tk": "1",
+"taobaoPromotionModel": {
+"finalPromotionInfo": {
+"couponPromotionModel": {
+"couponPromotionDesc": "满10减2",
+"couponPromotionPath": "f949da84471b4a148c8a734fd650a0e0:2:10:2:2:0:itemCoupon:2:商品券:2:1767369600:1772467199:0:2:0:0",
+"couponType": "1",
+"promotionAction": "2",
+"promotionCondition": "10",
+"promotionFee": "2",
+"promotionId": "f949da84471b4a148c8a734fd650a0e0",
+"promotionMode": "2",
+"promotionTitle": "商品券"
+},
+"finalPromotionPath": "f949da84471b4a148c8a734fd650a0e0:2:10:2:2:0:itemCoupon:2:商品券:2:1767369600:1772467199:0:2:0:0",
+"finalPromotionPrice": "14.8"
+}
+},
+"url": "https://detail.tmall.com/?e=m%3D2%26s%3Dlvg1eGLDd4hw4vFB6t2Z2ueEDrYVVa64Dne87AjQPk9yINtkUhsv0BMUEXDHx8T82Asi3OCa9egUm%2F7ndoAa1X8bwa%2FrvGmia2RI18yzDp%2Bdm859obdri3zXYP%2BgPImnUyNpxLfgKr0jWpzpm6nEC%2BJPp6EKohXrWl4%2BausiAyKFBTkzW2qspGRDV4eproIHQmCe2jcXsNeCL%2F0bWtXKtJWDLzUeJUW9KrDnuc4oESLYiKf2G%2ByCNhfXckdg1N99xgxdTc00KD8%3D&pvid=66cbcec1-ddce-45c1-acb1-0bfab8732401&app_pvid=59590_33.5.74.176_16670_1767782708498&ptl=floorId%3A83726%3BoriginalFloorId%3A83726%3Bpvid%3A66cbcec1-ddce-45c1-acb1-0bfab8732401%3Bapp_pvid%3A59590_33.5.74.176_16670_1767782708498&xId=4OlZt3AHLWx7lZrvHCZPZYT8CcqDKgICVZLO2u2KKGUYHyDYaT7Hf1T8Ix6toSwXWfq2LFI8U9jTV0AgCoODSZXPRLCatXla8jFQmyqRAVnX&taobao_lens=lensId%3AAPP%401767782708%4021054ab0_0ea2_19b980f7524_5868%40022AXjFYHO7HVt42uxSarwX7%40eyJmbG9vcklkIjo4MzcyNn0ie%3Bscm%3Ataobao.0.0.taobao_markting-page_0&scm=taobao.0.0.taobao_markting-page_0"
+}
+}
+}
+联系方式：@some1899
