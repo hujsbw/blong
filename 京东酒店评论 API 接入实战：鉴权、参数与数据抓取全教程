@@ -1,0 +1,361 @@
+在酒店竞品分析、口碑监控、民宿运营数据分析场景中，京东酒店评论数据具备极高的参考价值。通过官方酒店评论API，可稳定抓取用户评分、评价内容、晒图数据、入住体验、标签口碑等核心信息。相较于逆向爬虫，官方API合规性强、数据规整、不易封禁，是企业级数据采集的最优方案。本文从开发者鉴权、核心参数、代码实现、数据抓取到问题排查，完整讲解接入实战流程。
+
+（配图1：京东开放平台酒店API权限申请、应用鉴权配置截图）
+
+一、接入前置与鉴权流程
+接入京东酒店评论API，首先需入驻京东开放平台，完成企业开发者认证，创建应用并开通酒店数据相关接口权限。京东接口采用AppKey、AppSecret、AccessToken三重鉴权机制，所有请求必须通过签名校验与令牌校验。未完成鉴权、Token过期、权限未审核通过，都会直接返回401鉴权失败或403无权访问报错，也是新手接入的主要卡点。权限开通后，需定时刷新AccessToken，保障接口长期可用。
+
+二、核心接口与参数解析
+京东酒店评论核心接口支持分页获取酒店评价数据，核心必填参数清晰明确。公共参数包含app_key、timestamp、sign、access_token、format；业务核心参数为酒店ID、页码、每页条数、排序类型。需要重点注意，京东接口参数区分大小写，签名需严格按照ASCII升序排序拼接，参数缺失或格式错误会直接导致请求失败。同时支持筛选好评、中评、差评，适配精细化数据抓取需求。
+
+三、Python实战抓取代码
+以下为可直接运行的完整代码，包含标准签名算法、鉴权请求、分页抓取、评论数据解析，适配正式开发场景。
+
+import requests
+import time
+import hashlib
+
+# 配置自己的开发者凭证
+APP_KEY = "你的AppKey"
+APP_SECRET = "你的AppSecret"
+ACCESS_TOKEN = "你的有效Token"
+API_URL = "京东酒店评论接口地址"
+
+# 生成标准签名
+def get_sign(params):
+    sorted_params = sorted(params.items())
+    sign_str = "".join(f"{k}{v}" for k, v in sorted_params) + APP_SECRET
+    return hashlib.md5(sign_str.encode()).hexdigest()
+
+# 抓取酒店评论数据
+def get_hotel_comment(hotel_id, page=1):
+    params = {
+        "app_key": APP_KEY,
+        "timestamp": str(int(time.time())),
+        "access_token": ACCESS_TOKEN,
+        "format": "json",
+        "hotel_id": hotel_id,
+        "page": page,
+        "page_size": 20
+    }
+    params["sign"] = get_sign(params)
+    res = requests.get(API_URL, params=params, timeout=15)
+    data = res.json()
+    # 解析核心评论数据
+    if data.get("code") == 0:
+        for item in data["data"]["comment_list"]:
+            print(f"评分：{item['score']}，评价内容：{item['content']}")
+    return data
+
+if __name__ == "__main__":
+    get_hotel_comment("目标酒店ID", 1)
+（配图2：代码运行成功、评论数据批量输出截图）
+
+四、踩坑优化与实战总结
+实战中常见问题主要为签名错误、Token失效、高频限流、评论数据空返回。解决核心方案：规范参数排序、定时刷新令牌、设置请求休眠间隔、核对接口权限状态。批量采集场景下，可增加数据去重、本地缓存、异常重试机制，大幅提升采集稳定性。该接入方案合规稳定，可直接用于酒店口碑监测、竞品数据分析、用户舆情汇总等业务场景。
+
+示例：
+{
+"head": {
+"code": "200",
+"message": "请求成功",
+"subCode": "",
+"subMessage": "",
+"url": ""
+},
+"traceId": "6631256.41607.17666293971539570",
+"body": {
+"averageScore": 4.5,
+"imgComment": 5,
+"list": [
+{
+"checkType": 2,
+"content": "离医院很近，很方便",
+"created": "2025-12-07 19:51",
+"imgList": [],
+"nickName": "j***v",
+"roomName": "商务大床房",
+"roomTypeId": 85309,
+"score": 5,
+"source": 1,
+"title": "独自旅行",
+"type": 1,
+"userIcon": "http://storage.360buyimg.com/i.imageUpload/7164c1d5eabf31343234353233363038393539_mid.jpg"
+},
+{
+"checkType": 2,
+"content": "这里氛围很好，就医过程很省心",
+"created": "2025-01",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "商务标准房",
+"roomTypeId": 0,
+"score": 5,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "这里卫生条件很好，整体环境让人放心。出行挺顺的，周围吃饭方便，附近有市场和餐馆，价格也合适。水果种类多，价格比家乡还实惠。眼下这个时候过来，感觉挺值得的。",
+"created": "2025-01",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "零压舒适家庭房",
+"roomTypeId": 0,
+"score": 5,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "价格与质量不匹配",
+"created": "2025-01",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(内窗)",
+"roomTypeId": 0,
+"score": 1,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "非常满意，干净卫生。",
+"created": "2025-01",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(内窗)",
+"roomTypeId": 0,
+"score": 5,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "房间设施很全，住起来很舒适，面积适中，隔音也做得挺好。周边交通特别方便，地铁和公交线路很多，整体体验很棒，值得推荐。",
+"created": "2025-01",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(内窗)",
+"roomTypeId": 0,
+"score": 5,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "酒店处在市中心地段，周边医院林立，交通十分便捷。",
+"created": "2024-10",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "商务标准房",
+"roomTypeId": 0,
+"score": 4,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "房间不。错服务员也好",
+"created": "2024-10",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(无窗)",
+"roomTypeId": 0,
+"score": 5,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "房间整洁度很高，前台态度也特别友好，整体服务体验很棒。因为临时要提前离开，前台还很耐心地协助我处理相关事宜，非常满意。",
+"created": "2024-10",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "商务大床房",
+"roomTypeId": 0,
+"score": 5,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "入住体验挺差的，房间打扫时发现桌上放着自己买的几瓶水，结果他们没按标准提供每日赠送的两瓶，这种情况出现了两次。后来我要求补上之前的四瓶，对方却说因为之前没喝完所以没给，感觉挺不讲理的。另外，房卡每天不拿去楼下更新的话，房间就会停电，这个信息前台一开始没说明，挺让人困扰的。房间内的电话也不太好用，经常打不出去，实用性很低。",
+"created": "2024-10",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(无窗)",
+"roomTypeId": 0,
+"score": 1,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "第一次住这家酒店真是有点意外，本来是冲着国庆假期便宜才订的，1号到7号每天180多，结果8号价格居然涨到270，本来打算住到15号的，价格反而比节前还贵。房间面积太紧凑了，床对面就是洗手间，间距不到半米，洗漱区和淋浴区连门都没有，空间很局促。桌子也特别小，放几件行李都成问题。不过好在有独立的地方可以晾衣服，但外面风大时容易被吹走，这点有点不方便。",
+"created": "2024-10",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(无窗)",
+"roomTypeId": 0,
+"score": 1,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "整体不错，接待人员很热情！",
+"created": "2024-10",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(无窗)",
+"roomTypeId": 0,
+"score": 5,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "地段便利，前台人员服务热情周到！",
+"created": "2024-10",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(无窗)",
+"roomTypeId": 0,
+"score": 5,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "给爸爸买的房，内部面积挺紧凑的，没有电梯，外面的楼梯很不好走",
+"created": "2024-10",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "商务大床房",
+"roomTypeId": 0,
+"score": 2,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "房间挺宽敞，服务也很周到，可惜有些潮气。",
+"created": "2024-10",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(无窗)",
+"roomTypeId": 0,
+"score": 5,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "卫生：非常整洁 \n环境：挺好的，周边挺方便",
+"created": "2024-10",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(无窗)",
+"roomTypeId": 0,
+"score": 5,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "地理位置方便，周边配套尚可",
+"created": "2022-08",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(无窗)",
+"roomTypeId": 0,
+"score": 4,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "这个住宿挺满意的，整体是木屋的设计，还有窗户可以看风景，周边氛围也很舒适，出行方便，以后还会考虑再来这里。",
+"created": "2022-08",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(无窗)",
+"roomTypeId": 0,
+"score": 5,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "干净卫生方便",
+"created": "2022-08",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "商务标准房",
+"roomTypeId": 0,
+"score": 5,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+},
+{
+"checkType": 2,
+"content": "物美价廉，挺好的。",
+"created": "2022-08",
+"imgList": [],
+"nickName": "匿名用户",
+"roomName": "大床房(无窗)",
+"roomTypeId": 0,
+"score": 4,
+"source": 1,
+"title": "",
+"type": 1,
+"userIcon": ""
+}
+],
+"negativeComment": 10,
+"neutralComment": 20,
+"pageNum": 1,
+"pageSize": 20,
+"pages": 14,
+"positiveComment": 246,
+"total": 276
+}
+}
+联系方式：@some1899
