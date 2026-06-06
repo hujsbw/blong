@@ -1,0 +1,261 @@
+在完成小红书开放平台应用创建后，开发者最核心的任务之一就是获取Access Token。Access Token是调用开放平台接口的唯一身份凭证，没有Token，任何数据请求都无法通过平台验证。本章将结合实际开发场景，详细讲解Token的获取流程、授权逻辑以及接口调用实战方法。
+
+2.1 Token获取原理
+
+小红书开放平台采用OAuth 2.0标准授权机制。该机制的核心思想是：用户授权第三方应用访问指定资源，而无需向第三方暴露自己的账号密码。
+
+整个授权流程主要涉及四个角色：
+
+用户（Resource Owner）
+小红书授权服务器（Authorization Server）
+小红书资源服务器（Resource Server）
+第三方开发应用（Client）
+
+开发者创建应用后，会获得以下关键信息：
+
+App Key（应用ID）
+App Secret（应用密钥）
+Redirect URI（回调地址）
+
+这些参数将在后续授权过程中使用。
+
+2.2 获取授权码（Authorization Code）
+
+第一步需要引导用户访问授权页面。
+
+授权地址通常包含以下参数：
+
+client_id
+redirect_uri
+response_type
+state
+
+用户登录并确认授权后，小红书服务器会将用户重定向到开发者配置的回调地址，并携带授权码Code。
+
+例如：
+
+https://yourdomain.com/callback?code=AUTH_CODE&state=123456
+
+此时开发者服务器即可接收到授权码。
+
+需要注意：
+
+授权码通常只能使用一次
+授权码存在有效期
+获取后应立即兑换Token
+2.3 使用授权码换取Access Token
+
+获得Code后，服务器向Token接口发起请求。
+
+Python示例：
+
+import requests
+
+url = "https://api.example.com/oauth/token"
+
+data = {
+"client_id": "YOUR_APP_KEY",
+"client_secret": "YOUR_APP_SECRET",
+"grant_type": "authorization_code",
+"code": "AUTH_CODE",
+"redirect_uri": "https://yourdomain.com/callback"
+}
+
+response = requests.post(url, json=data)
+
+print(response.json())
+
+接口返回结果示例：
+
+{
+"access_token":"xxxxxxxxxx",
+"refresh_token":"yyyyyyyyyy",
+"expires_in":7200,
+"scope":"user_info"
+}
+
+返回数据中包含：
+
+access_token：接口调用凭证
+refresh_token：刷新凭证
+expires_in：有效期
+scope：授权范围
+
+此时开发者已经成功获得Token。
+
+2.4 Token安全存储方案
+
+许多新手开发者喜欢直接把Token写死在代码中，这是非常危险的做法。
+
+推荐使用以下方式存储：
+
+数据库存储
+CREATE TABLE token_info (
+id INT PRIMARY KEY,
+access_token TEXT,
+refresh_token TEXT,
+expire_time DATETIME
+);
+Redis缓存
+redis.set(
+"access_token",
+token,
+ex=7200
+)
+
+Redis能够自动处理过期时间，非常适合Token管理。
+
+2.5 Access Token调用接口实战
+
+获取Token后即可访问开放平台接口。
+
+例如获取用户信息：
+
+import requests
+
+headers = {
+"Authorization": "Bearer ACCESS_TOKEN"
+}
+
+response = requests.get(
+"https://api.example.com/user/info",
+headers=headers
+)
+
+print(response.json())
+
+请求头中的Authorization字段是最关键的部分。
+
+服务器收到请求后会验证：
+
+Token是否合法
+Token是否过期
+Token是否具有对应权限
+
+验证通过后返回用户数据。
+
+2.6 Token自动刷新机制
+
+在实际项目中，Token会定期失效。
+
+如果每次都要求用户重新授权，将严重影响用户体验。
+
+因此开放平台通常提供Refresh Token机制。
+
+刷新示例：
+
+import requests
+
+data = {
+"grant_type":"refresh_token",
+"refresh_token":"YOUR_REFRESH_TOKEN",
+"client_id":"APP_KEY",
+"client_secret":"APP_SECRET"
+}
+
+response = requests.post(
+"https://api.example.com/oauth/refresh",
+json=data
+)
+
+print(response.json())
+
+系统获取新的Access Token后，可以自动更新数据库中的记录，实现无感续期。
+
+企业级项目通常会在Token剩余10%生命周期时提前刷新，从而避免业务中断。
+
+2.7 常见错误及解决方案
+错误一：Token失效
+
+返回：
+
+{
+"code":401,
+"msg":"token expired"
+}
+
+解决办法：
+
+使用Refresh Token重新获取Access Token。
+
+错误二：权限不足
+
+返回：
+
+{
+"code":403,
+"msg":"permission denied"
+}
+
+解决办法：
+
+检查应用是否申请对应接口权限。
+
+错误三：授权码无效
+
+返回：
+
+{
+"code":400,
+"msg":"invalid code"
+}
+
+解决办法：
+
+重新发起用户授权流程。
+
+错误四：回调地址不匹配
+
+返回授权失败页面。
+
+解决办法：
+
+确保请求中的Redirect URI与开放平台后台配置完全一致。
+
+2.8 开发中的最佳实践
+
+在生产环境中，推荐遵循以下原则：
+
+所有接口请求必须使用HTTPS。
+App Secret禁止暴露在前端页面。
+Token仅在服务端存储和使用。
+定期监控Token失效情况。
+建立自动刷新机制。
+对接口调用增加异常重试逻辑。
+记录授权日志和调用日志。
+
+通过这些措施，可以显著提高系统稳定性和安全性。
+
+总结来说，Token获取是小红书开放平台开发的核心环节。从授权码获取、Access Token兑换、接口调用到自动刷新机制，每一步都直接关系到系统的正常运行。掌握标准OAuth授权流程，不仅能够帮助开发者快速完成接口对接，也能够确保项目长期稳定、安全地运行。在后续章节中，我们将进一步讲解如何利用获取到的Token完成内容发布、数据查询以及账号运营自动化开发。
+
+示例：
+{
+":method": "POST",
+":authority": "edith.rnote.com",
+":path": "/api/sns/v1/note/detailfeed/preload",
+":scheme": "https",
+"content-length": "792",
+"x-legacy-fid": "",
+"user-agent": "discover/9.27 (iPhone; iOS 16.7.15; Scale/3.00) Resolution/10801920 Version/9.27 Build/9270812 Device/(Apple Inc.;iPhone10,5) NetType/WiFi",
+"xy-direction": "94",
+"x-xray-traceid": "cf14b5600cd97995b87737ae6b73491b",
+"xy-scene": "point=601&fs=0",
+"x-mini-mua": "eyJhIjoiRUNGQUFGMDIiLCJjIjozMjgsImkiOjIsImsiOiJiM2U3NThlZjhlZjU3NzRjNGFkOTkyN2E2ZDUyOWExODU4ZDFmMzI2MWRiZjFiNDE1M2MzYzBiZjM3OGJlNTJhIiwibSI6IjE3Nzg4MTEzMjIzOTQiLCJuIjoiOTA3ZDU0OTZmNmE4MjUzOGQyNWE5MTY1N2NiOGIxOGQiLCJvIjoiSzVLQV9jUXQyNUtpdmtmY2lHSl9rZyIsInAiOiJpIiwicyI6ImFkNDBjODE2YjM2MjkyYWZiMjFhMmM1MDljODVkMDAxIiwidSI6IjAwMDAwMDAwNTAwOWQ4MmZlN2EzMGM4YmJlNjc0NDA5ZWMxYjUzMDYiLCJ2IjoiMi4yLjEwIn0.dpbSeFJUUTnB-VGTjoIAyek9NpBaBiahi08S2FF1Fgw_Y_iruO81fv6JM1XX55duseVDSaD3Ll-gIYSzY1tUl5bwrW4OyjG4oAs5pT7j2vWpqxGcNk343Rfddm1pSg3H0u54x--x-BypCEwqYzQ01L18z6wTNNryIfr8itHOZVsl4Fnp0J7LrgsbADNYpfTfUaFGSArb288GCA6lW9bzOAt3J93ZGXnvTCOaxAsAWooSgCO0EZ5J5r6ZPvT4KlBaUZc3NdcapW19hNSXVuPbGKLpK18iVel-p1RsCJmQu9tHPXiPKkIPJt96KrlAnUsrTARkvt3u4f5PbtOoXtuXIFRZlVaNkR8OHTaYzVpPwZpiEJzu40-q4yIm-JozvagryN-gr0p5cDg_5aJVybcpS0Mm8IkB1am4u3pABdwa2tDUynmAkJFJX2oM0F544PbJwCeKqQZNzkbiYfHWTQ3VGcdhZJngLqj864asBmbMoKKlf9HXh2ioP1fkFxUE1ROVpoE-lXCsjevnYV5xu-ZXXm3PqrVIoivdvJW1f-abmcUF9_jlqzriNTrn-M3MLE7s.",
+"x-b3-traceid": "47662ecef27a283e",
+"x-mini-gid": "7c8d766301cc5480edc7daba80bfd6a8c4bd66184735902377ae48b3",
+"accept-language": "zh-Hans;q=1, en;q=0.9",
+"x-mini-sig": "54b805ec1ebc2c972dfaa09d9b0e8bf61ec09a534ed3f97e6c556f02cf0abb75",
+"x-legacy-did": "2D1C00B4-950D-48E9-8BA3-6EF2F8FC3C64",
+"x-mini-nsig": "3697e81e1a498c201383eb2f42d720d6748ca60c5219c8295df87e72b36b4156",
+"x-mini-s1": "AGYAAAABwUJ+xRVakO1iWZ6+3YqadOZOcxG1YP32PB5U9hipRQnK+MYJ6IKitLT+NtrDkGAuK7XXFtlyVO0=",
+"shield": "XYAAEAAgAAAAEAAABTAAAAUzUWEe4xG1IYD9/c+qCLOlKGmTtFa+lG438Me+FeRa9AsYXDnrYVSJ3x+uArz8QiqcR+2dBDEwxIZBOKErOCrygTgOCtciO2Wwg+m4UWd18fQILV",
+"x-net-core": "crn",
+"xy-platform-info": "platform=iOS&version=9.27&build=9270812&deviceId=2D1C00B4-950D-48E9-8BA3-6EF2F8FC3C64&bundle=com.xingin.discover",
+"content-type": "application/x-www-form-urlencoded; charset=utf-8",
+"accept-encoding": "gzip;q=1.0,compress;q=0.5",
+"xy-common-params": "SUE=1&active_ctry=CN&app_id=ECFAAF02&auto_trans=0&build=9270812&channel=AppStore&data_ctry=SG&deviceId=2D1C00B4-950D-48E9-8BA3-6EF2F8FC3C64&device_level=0&device_model=phone&did=01dc42bdeaa362f0bcbc94492d97d052&dlang=zh&fid=&gid=7c8d766301cc5480edc7daba80bfd6a8c4bd66184735902377ae48b3&holder_ctry=US&id_token=VjEAAEeBOZOusFtZbOAFBQ3hk%2B1hnXiGOKfao0y6iXxDQihc23Jayl6452prLPpLWh/PLH4xgwO8MHO5uMtsmZ2DcQ1vvzxjMSKkq1%2B879V0GKBDvgcKq9SzMkt/W0rWcKkzFv8t&identifier_flag=0&is_mac=0&lang=zh-Hans&launch_id=800504084&mlanguage=zh_cn&nqe_score=88&overseas_channel=0&platform=iOS&project_id=ECFAAF&sid=session.1778638826665123828834&t=1778811322&teenager=0&tz=Asia/Shanghai&uis=light&version=9.27",
+"accept": "/*",
+"referer": "https://app.xhs.cn/",
+"cookie": "acw_tc=0a587c9c17788112874311747e277c0d52751a36232fd8c1b7cf5610d7d738"
+}
+联系方式：@some1899
