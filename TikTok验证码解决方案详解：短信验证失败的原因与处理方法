@@ -1,0 +1,413 @@
+在TikTok账号注册、登录、修改密码以及安全验证过程中，短信验证码是最常见的身份认证方式之一。然而，许多用户在实际使用过程中经常遇到验证码收不到、验证码延迟、验证失败等问题，尤其是在跨境运营和海外市场环境下更为常见。验证码问题不仅影响账号正常使用，还可能导致注册失败、账号无法登录甚至触发平台安全风控。因此，了解验证码发送机制以及常见故障处理方法，对于运营人员和开发者来说十分重要。
+
+一、TikTok验证码的工作原理
+
+TikTok验证码系统本质上是一套短信身份验证机制。当用户执行注册、登录或敏感操作时，系统会向绑定手机号发送一次性验证码（OTP）。
+
+整个流程如下：
+
+用户提交手机号
+↓
+TikTok验证请求
+↓
+短信服务商发送验证码
+↓
+用户接收验证码
+↓
+提交验证码验证
+↓
+验证成功
+
+在这一过程中，TikTok、短信服务商、运营商以及用户设备都会参与数据传输。任何一个环节出现问题，都可能导致验证码接收失败。
+
+二、验证码收不到的常见原因
+
+手机号码格式错误
+这是最常见的问题之一。
+
+例如：
+
+国家区号选择错误
+手机号码位数不正确
+输入了无效号码
+
+正确示例：
+
+美国：+1 1234567890
+英国：+44 7123456789
+
+在提交号码前，应确认国家代码与号码格式符合当地运营商要求。
+
+运营商短信拦截
+部分运营商会对国际短信进行过滤。
+
+常见情况包括：
+
+国际短信功能未开通
+运营商安全策略限制
+海外短信通道异常
+
+用户可以联系运营商客服确认：
+
+是否支持国际短信接收
+是否存在短信拦截策略
+是否已被列入垃圾短信过滤名单
+3. 手机安全软件拦截
+
+许多智能手机都具备垃圾短信识别功能。
+
+例如：
+
+Android短信过滤系统
+手机管家
+第三方安全软件
+
+验证码短信可能被自动归类到：
+
+垃圾短信
+广告短信
+拦截短信
+
+建议检查短信拦截记录和垃圾箱。
+
+网络环境异常
+TikTok拥有完善的风控系统。
+
+如果检测到：
+
+频繁切换IP
+异常设备登录
+高风险网络环境
+
+系统可能暂停发送验证码。
+
+表现为：
+
+点击发送无响应
+长时间无法收到短信
+提示操作频繁
+
+此时建议：
+
+切换稳定网络
+避免频繁请求
+稍后重新尝试
+5. TikTok服务器延迟
+
+在高峰期或大型活动期间，验证码请求量会显著增加。
+
+可能出现：
+
+短信发送延迟
+排队发送
+部分地区到达率下降
+
+一般等待5至10分钟即可恢复正常。
+
+三、验证码验证失败的原因
+
+即使收到验证码，也可能出现验证失败问题。
+
+验证码已过期
+
+验证码通常具有时效限制。
+
+常见有效时间：
+
+5分钟
+10分钟
+15分钟
+
+超时后需要重新获取验证码。
+
+输入错误
+
+常见错误包括：
+
+数字输入错误
+混淆数字0和字母O
+多次复制导致格式异常
+
+建议手动核对后重新输入。
+
+多次请求导致失效
+
+如果连续获取多个验证码：
+
+验证码A
+验证码B
+验证码C
+
+系统通常只保留最后一次生成的验证码。
+
+用户输入旧验证码时将验证失败。
+
+四、提高验证码接收成功率的方法
+使用真实手机号
+
+TikTok通常要求使用真实有效号码。
+
+避免使用：
+
+无效号码
+停机号码
+长期未使用号码
+
+真实号码能够显著提高验证成功率。
+
+保持网络稳定
+
+建议使用：
+
+稳定Wi-Fi
+正常移动网络
+
+避免频繁切换网络环境。
+
+控制请求频率
+
+错误操作示例：
+
+1分钟发送10次验证码
+
+容易触发风控限制。
+
+推荐间隔：
+
+60秒以上
+
+再次请求验证码。
+
+检查短信存储空间
+
+部分老旧设备短信容量有限。
+
+如果短信存储已满：
+
+新短信无法接收
+验证码可能被系统忽略
+
+建议定期清理短信记录。
+
+五、企业级验证码解决方案
+
+对于开发者和企业用户而言，仅依赖单一短信通道并不可靠。
+
+成熟的验证码系统通常采用以下方案：
+
+多通道短信服务
+
+同时接入多个短信供应商：
+
+供应商A
+↓
+供应商B
+↓
+供应商C
+
+当主通道异常时自动切换备用通道。
+
+智能重发机制
+
+如果短信未送达：
+
+第一次发送
+↓
+失败
+↓
+自动重发
+
+提升整体到达率。
+
+风控检测机制
+
+监控：
+
+高频请求
+异常IP
+批量注册行为
+
+减少恶意验证请求。
+
+日志监控系统
+
+记录：
+
+发送时间
+到达状态
+验证结果
+
+方便快速定位问题。
+
+六、常见错误代码分析
+
+验证码业务中常见错误包括：
+
+错误代码 含义
+400 参数错误
+401 验证失败
+403 权限受限
+429 请求频率过高
+500 服务器异常
+
+开发过程中应根据错误代码进行针对性处理。
+
+总结
+
+TikTok验证码系统是账号安全体系的重要组成部分。验证码收不到或验证失败通常与手机号格式、运营商限制、网络环境、设备拦截以及平台风控机制有关。对于普通用户而言，检查号码格式、保持网络稳定、避免频繁请求往往能够解决大部分问题；对于企业和开发者而言，则应建立多通道发送、智能重试、风控监控以及日志分析机制，从而提高验证码到达率和验证成功率，保障业务系统稳定运行。
+请求示例：
+
+{
+"code": 0,
+"data": {
+"kol_status": 1,
+"entrance": 0,
+"priority_region": null,
+"protocol_popups_content": null,
+"no_product_status": 3,
+"shop_center_schema": "",
+"showcase_schema": "",
+"showcase_independent_page_schema": "aweme://ec/showcase?ab_params=showcase_product_list_switch%2Cshop_card_optimize_us%2Cshowcase_dynamic_card%2Cshop_card_optimize_in_showcase%2Croma_schema_group_shop_dynamic_pages%2Cproduct_protocol_version%2Crecommend_v2_product_protocol_version%2Cstore_showcase_double_column_product_card_loose%2Cenable_show_follow_list%2Cec_showcase_skeleton%2Cshowcase_show_sold_num%2Cec_showcase_new_follow_btn%2Coffline_creator_caching%2Cenable_window_search_mix\u0026author_id=7356434712338056238\u0026filter_tab=1\u0026hide_nav_bar=1\u0026hide_status_bar=0\u0026loading_bg_color_dark=121212FF\u0026trans_status_bar=1\u0026url=https%3A%2F%2Flf16-gecko-source.tiktokcdn.com%2Fobj%2Fbyte-gurd-source-sg%2Ftiktok%2Ffe%2Flive%2Ftiktok_live_ecommerce_seller_showcase%2Fpages%2Fseller-showcase-page.js\u0026use_new_container=1",
+"banned_time": 0,
+"products": {
+"has_more": true,
+"next_scroll_param": "11",
+"use_kol_for_recommend": false,
+"req_id": "7634467830070706463",
+"product_list_map": {
+"Showcase.Profile_Page_Showcase_Feeds.Common": {
+"product_list": [
+{
+"product_id": "1729718227415699653",
+"status": 1,
+"pdp_schema": "aweme://ec/pdp?biz_type=0\u0026fullScreen=true\u0026orderRequestParams=%7B%7D\u0026requestParams=%7B%22product_id%22%3A%5B%221729718227415699653%22%5D%2C%22ab_img%22%3Afalse%2C%22traffic_signature%22%3A%22%7B%5C%22scene%5C%22%3A%5C%22Default.Showcase.Product_Page_Feeds%5C%22%7D%22%7D\u0026visitReportParams=%7B%22chain_key%22%3A%22%7B%5C%22cck%5C%22%3A%5C%22Hq1ff%2FbLD9lFYhdbRDbp7rHEmyiCDsgOKBSms6krmOgw7mQo4Cb16QWLKigvC8DG%2F3O1sAsqn6Ox8Qz8oX%2F3Q843tjmAM1FMP9N3Fg%3D%3D%5C%22%2C%5C%22mck%5C%22%3A%5C%22XlnjUeQ4I568Qcyz4GvB2pSQEBbZ8IJzCbQ4JLLD8dJDO5mf%2FIvgKJLCMBwIHxVbQfLOardWfH%2FUJdarOft6Hhum6O0TPeRWjhXikA%3D%3D%5C%22%2C%5C%22v%5C%22%3A1%7D%22%2C%22material_id%22%3A%221729718227415699653%22%2C%22material_type%22%3A1%2C%22seller_id%22%3A%227495527153686448325%22%7D",
+"cover": {
+"image": {
+"height": 667,
+"width": 500,
+"uri": "tos-useast5-i-omjb5zjo8w-tx/5341481be9024750978b1ced9a53a045",
+"url_list": [
+"https://p16-oec-general-useast5.ttcdn-us.com/tos-useast5-i-omjb5zjo8w-tx/5341481be9024750978b1ced9a53a045~tplv-fhlh96nyum-crop-webp:500:667.webp?dr=12190\u0026t=555f072d\u0026ps=933b5bde\u0026shp=4ee6669e\u0026shcp=9b759fb9\u0026idc=useast8\u0026from=1323722398"
+],
+"ratio": 0.75
+}
+},
+"title": {
+"title": "Blue MoonStone Ring, More Jewelry in Live Room, Blue Moonstone Rings, Blue Moonstone Jewelry, Moonstone Heart shape Ring"
+},
+"price": {
+"sku_id": "1729718227415765189",
+"currency_name": "USD",
+"currency_symbol": "$",
+"symbol_position": 1,
+"sale_price_decimal": "39.99",
+"sale_price_format": "39.99",
+"show_currency_space": false,
+"currency_show_mode": 1,
+"sale_price_integer_part_format": "39",
+"sale_price_decimal_part_format": "99",
+"decimal_point_symbol": "."
+},
+"sku_ids": [
+"1729718227415765189"
+],
+"seller_id": "7495527153686448325",
+"official_creator_id": "6953101682235212805",
+"biz_type": 0,
+"source": 5,
+"chain_key": "{"cck":"Hq1ff/bLD9lFYhdbRDbp7rHEmyiCDsgOKBSms6krmOgw7mQo4Cb16QWLKigvC8DG/3O1sAsqn6Ox8Qz8oX/3Q843tjmAM1FMP9N3Fg","mck":"XlnjUeQ4I568Qcyz4GvB2pSQEBbZ8IJzCbQ4JLLD8dJDO5mf/IvgKJLCMBwIHxVbQfLOardWfH/UJdarOft6Hhum6O0TPeRWjhXikA","v":1}",
+"tag_list": [
+{
+"tag_typ
+e": 301,
+"text": "10 sold"
+}
+],
+"log_extra": "{"cover_strategy":{"image_tactics_type":0,"is_smart_crop":false},"sku_id":"1729718227415765189","seller_sku_id":"1729718227415765189","platform_sku_id":"","rating_strategy":{"review_cnt":"3"},"is_platform_product":0,"sale_modes":"[]","platform_seller_id":"","seller_shop_id":"7495527153686448325","platform_shop_id":"","title_strategy":{"title_tactics_type":0},"sold_count_strategy":{"volume_type":"sold","volume":"10"},"seller_product_id":"1729718227415699653","platform_product_id":"","seller_seller_id":"7495527153686448325"}",
+"bcm_standard_track": {
+"track_param": {
+"bcm_multiverse_id": "202604300834399017084010030000001e1583b3c206133c"
+},
+"chain_param": {
+"bcm_multiverse_id": "202604300834399017084010030000001e1583b3c206133c"
+}
+},
+"author_id": "7356434712338056238",
+"recommend_info": "{"reason":"window_hive_inverted:13,window_product:21","score":14.66147713205843,"debug_info":"{\"request_id\":\"7634467830070706463\",\"channel_id\":1111826,\"sub_chn_id\":0,\"pool_id\":0,\"list_entrance\":\"\",\"region\":\"US\",\"session_id\":2309086732270,\"req_ts\":1777538079,\"user_value\":1,\"predict_index\":0,\"recall_reason\":\"window_hive_inverted:13,window_product:21\",\"score\":14.66147713205843,\"rank_score\":14.66147713205843,\"model_name\":{\"_DFO\":\"1039783\",\"_MTL\":\"1246209\",\"_REP\":\"1130109\",\"promotion_ack_host\":\"\",\"promotion_ack_port\":\"0\"},\"model_preds\":{\"_DFO:e2e_days_mean\":7.66496,\"_DFO:is_feedback_max\":0.06112,\"_DFO:negative_review_max\":0.00371,\"_DFO:real_shipping_fee_mean\":5.48935,\"_DFO:review_based_negative_review_max\":0.04954,\"_MTL:product_click\":0.15546,\"_MTL:product_gmv\":0.00113,\"_MTL:product_order_cvr\":0.00005,\"_REP:rep_uid\":0.39672},\"VT_DEBUG\":{\"pctr\":0.15546,\"pcvr\":0.00005,\"price\":39.99,\"pgmv\":0.00113,\"combine_score\":0.17837,\"sort_boost_weight\":1.0,\"root\":14.66148},\"is_roi2\":0,\"trigger_items\":\",\",\"main_reason\":{\"recall_name\":\"window_hive_inverted\",\"merge_idx\":22,\"recall_idx\":13,\"all_recall_name\":\"ttmall_window_hive_inverted_recall:13,window_product_recall:21,\",\"trigger_key\":\"\",\"trigger_time\":\"\"},\"multimodal_cos_sim\":0.0,\"gs_high_pv_deboost_weight\":1.0,\"product_roughsort\":{\"model_name\":\"\",\"combine_score\":0.0,\"rank_idx\":\"0,0,0\",\"r_bid\":0.0},\"recflow_trigger_info_str\":\"\",\"cold_start_traffic_control\":{\"cs_boost\":1.0,\"sales_combine\":10,\"cs_gd\":0,\"is_cs\":0,\"is_in_cs\":0,\"cs_prior_gd\":0,\"cs_prior\":0,\"cs_ks\":0,\"cs_gd_tag\":-1,\"rb_tag\":-1,\"fb_tag\":-1,\"cs_abkey\":\"default\",\"lptc_use_v3_tag\":\"0\",\"cs_version\":\"0716_shop6\",\"cs_type\":\"shop6\",\"ct_shows_num\":10000,\"cs_time\":0,\"cs_status\":0,\"cs_pid_status\":0},\"sub_ord_cnt\":10,\"shelf_product_traffic_control\":{\"mo_code\":0,\"mo_score\":1.0,\"bp_is_branded\":0,\"bp_score\":1.0,\"bp_version\":\"\",\"bp_type\":\"\"},\"fatigue\":\"1,0,0\",\"recommend_source\":\"ttmall_sort\",\"product_index\":1,\"sess_refresh_idx\":1,\"rerank_idx\":0,\"before_rerank_idx\":0,\"product_id\":1729718227415699653,\"hybrid_index\":0,\"click_num\":194,\"show_num\":150,\"roughsort_index\":-1,\"after_merge_pid_cnt\":64,\"rl\":{\"tags\":\"recall_window_hive_inverted,recall_window_product\"},\"video2item_trigger_items\":\",\",\"category\":{\"lv1\":\"953224\",\"lv2\":\"964232\",\"leaf\":\"973192\",\"rec_ctg_lv4\":\"97319200\"},\"ver_tag\":\"8935671091657973351\",\"free_ship\":{\"new_fee\":0.0,\"old_fee\":0.0,\"free_ship\":0,\"group_free_ship\":\"1:0,4:0,0:0,2:0,3:0\"},\"lpa_is_bidding\":0,\"dup\":{\"dup_id\":1729718227415699653,\"cover_sim_id\":1729718227415699653,\"spu_sim_id\":1729718227415699653,\"prod_sim_id\":1729468307236557636},\"context_ttmall_seller_id\":7356434712338056238,\"clk_seq_len\":194,\"low_price_traffic_control\":{\"price_tag_v4\":0,\"ext_same_shop_price\":0.0,\"price_diff
+_rate\":0.0,\"sale_price_tag_v4\":6},\"sales\":10,\"gender\":\"2\",\"kg_gender\":\"2\",\"age\":\"5\",\"product_invert_num\":{\"exch_rt\":0.0,\"rc_rs_rt\":0.0,\"rs_fs_rt\":0.0,\"t10_rt\":0.0,\"t50_rt\":0.0,\"t200_rt\":0.0,\"ivt_val_vad\":0.0},\"mix\":{\"m\":{\"_MTL\":\"r1241874\"}}}"}",
+"recommend_req_id": "7634467830070706463"
+},
+{
+"product_id": "1730231137690751173",
+"status": 1,
+"pdp_schema": "aweme://ec/pdp?biz_type=0\u0026fullScreen=true\u0026orderRequestParams=%7B%7D\u0026requestParams=%7B%22product_id%22%3A%5B%221730231137690751173%22%5D%2C%22ab_img%22%3Afalse%2C%22traffic_signature%22%3A%22%7B%5C%22scene%5C%22%3A%5C%22Default.Showcase.Product_Page_Feeds%5C%22%7D%22%7D\u0026visitReportParams=%7B%22chain_key%22%3A%22%7B%5C%22cck%5C%22%3A%5C%22Ql29kUXz6I8uiZantq%2BYfxnmFdK6jdrw2z3CFIiuv0T4kxBe1KnOQmgeScg3e0EOScHc6Gu6Xpx3O30WChDvUaFxUmLo1iITjoLsUQ%3D%3D%5C%22%2C%5C%22mck%5C%22%3A%5C%22rAsqhSf9%2BjQEFDHYGYwruflUZ4iZxmjieUAisXfgDmoF3NBPkbjvSo%2BVIOwDEWFJr7sx9TBlnSXOACjTD8EDucXxjy%2B%2BhkPTecLeaQ%3D%3D%5C%22%2C%5C%22v%5C%22%3A1%7D%22%2C%22material_id%22%3A%221730231137690751173%22%2C%22material_type%22%3A1%2C%22seller_id%22%3A%227495527153686448325%22%7D",
+"cover": {
+"image": {
+"height": 500,
+"width": 500,
+"uri": "tos-useast5-i-omjb5zjo8w-tx/ceb91449f684428a8d8335f2e2e396cd",
+"url_list": [
+"https://p19-oec-general-useast5.ttcdn-us.com/tos-useast5-i-omjb5zjo8w-tx/ceb91449f684428a8d8335f2e2e396cd~tplv-fhlh96nyum-crop-webp:500:500.webp?dr=12190\u0026t=555f072d\u0026ps=933b5bde\u0026shp=4ee6669e\u0026shcp=9b759fb9\u0026idc=useast8\u0026from=1323722398"
+],
+"ratio": 1
+}
+},
+"title": {
+"title": "Natural Larimar Ring, More Jewelry in Live Room, Larimar Rings, Larimar Gift, Natural Gemstone Rings, Natural Crystal Rings, Gemstone Jewelry for Women, Ring Gift for Birthday Anniversary"
+},
+"price": {
+"sku_id": "1730231137690816709",
+"currency_name": "USD",
+"currency_symbol": "$",
+"symbol_position": 1,
+"sale_price_decimal": "29.99",
+"sale_price_format": "29.99",
+"show_currency_space": false,
+"currency_show_mode": 1,
+"sale_price_integer_part_format": "29",
+"sale_price_decimal_part_format": "99",
+"decimal_point_symbol": "."
+},
+"sku_ids": [
+"1730231137690816709"
+],
+"seller_id": "7495527153686448325",
+"official_creator_id": "6953101682235212805",
+"biz_type": 0,
+"source": 5,
+"chain_key": "{"cck":"Ql29kUXz6I8uiZantq+YfxnmFdK6jdrw2z3CFIiuv0T4kxBe1KnOQmgeScg3e0EOScHc6Gu6Xpx3O30WChDvUaFxUmLo1iITjoLsUQ","mck":"rAsqhSf9+jQEFDHYGYwruflUZ4iZxmjieUAisXfgDmoF3NBPkbjvSo+VIOwDEWFJr7sx9TBlnSXOACjTD8EDucXxjy++hkPTecLeaQ","v":1}",
+"tag_list": [
+{
+"tag_type": 301,
+"text": "3 sold"
+}
+],
+"log_extra": "{"sale_modes":"[]","seller_product_id":"1730231137690751173","platform_seller_id":"","platform_shop_id":"","sku_id":"1730231137690816709","seller_sku_id":"1730231137690816709","platform_sku_id":"","is_platform_product":0,"seller_seller_id":"7495527153686448325","seller_shop_id":"7495527153686448325","title_strategy":{"title_tactics_type":0},"sold_count_strategy":{"volume_type":"sold","volume":"3"},"cover_strategy":{"image_tactics_type":0,"is_smart_crop":false},"platform_product_id":""}",
+"bcm_standard_track": {
+"track_param": {
+"bcm_multiverse_id": "202604300834399017084010030000006398ce7de5968
+413"
+},
+"chain_param": {
+"bcm_multiverse_id": "202604300834399017084010030000006398ce7de5968413"
+}
+},
+"author_id": "7356434712338056238",
+"recommend_info": "{"reason":"window_hive_inverted:19,window_product:14","score":0.9640943330108123,"debug_info":"{\"request_id\":\"7634467830070706463\",\"channel_id\":1111826,\"sub_chn_id\":0,\"pool_id\":0,\"list_entrance\":\"\",\"region\":\"US\",\"session_id\":2309086732270,\"req_ts\":1777538079,\"user_value\":1,\"predict_index\":1,\"recall_reason\":\"window_hive_inverted:19,window_product:14\",\"score\":0.9640943330108123,\"rank_score\":0.9640943330108123,\"model_name\":{\"_DFO\":\"1039783\",\"_MTL\":\"1246209\",\"_REP\":\"1130109\",\"promotion_ack_host\":\"\",\"promotion_ack_port\":\"0\"},\"model_preds\":{\"_DFO:e2e_days_mean\":9.08825,\"_DFO:is_feedback_max\":0.01831,\"_DFO:negative_review_max\":0.0009,\"_DFO:real_shipping_fee_mean\":5.4032,\"_DFO:review_based_negative_review_max\":0.02005,\"_MTL:product_click\":0.12231,\"_MTL:product_gmv\":0.00113,\"_MTL:product_order_cvr\":0.00005,\"_REP:rep_uid\":0.40631},\"VT_DEBUG\":{\"pctr\":0.12231,\"pcvr\":0.00005,\"price\":29.99,\"pgmv\":0.00113,\"combine_score\":0.14518,\"sort_boost_weight\":1.0,\"root\":0.96409},\"is_roi2\":0,\"trigger_items\":\",\",\"main_reason\":{\"recall_name\":\"window_product\",\"merge_idx\":27,\"recall_idx\":14,\"all_recall_name\":\"window_product_recall:14,ttmall_window_hive_inverted_recall:19,\",\"trigger_key\":\"\",\"trigger_time\":\"\"},\"multimodal_cos_sim\":0.0,\"gs_high_pv_deboost_weight\":1.0,\"product_roughsort\":{\"model_name\":\"\",\"combine_score\":0.0,\"rank_idx\":\"0,0,0\",\"r_bid\":0.0},\"recflow_trigger_info_str\":\"\",\"cold_start_traffic_control\":{\"cs_boost\":1.0,\"sales_combine\":3,\"cs_gd\":0,\"is_cs\":0,\"is_in_cs\":0,\"cs_prior_gd\":0,\"cs_prior\":0,\"cs_ks\":0,\"cs_gd_tag\":-1,\"rb_tag\":-1,\"fb_tag\":-1,\"cs_abkey\":\"default\",\"lptc_use_v3_tag\":\"0\",\"cs_version\":\"0716_shop6\",\"cs_type\":\"shop6\",\"ct_shows_num\":7181,\"cs_time\":0,\"cs_status\":0,\"cs_pid_status\":0},\"sub_ord_cnt\":3,\"shelf_product_traffic_control\":{\"mo_code\":0,\"mo_score\":1.0,\"bp_is_branded\":0,\"bp_score\":1.0,\"bp_version\":\"\",\"bp_type\":\"\"},\"discover_ratio\":\"1.0000,1.0000,1.0000,1.0000,0.0000\",\"fatigue\":\"1,0,0\",\"recommend_source\":\"ttmall_sort\",\"product_index\":2,\"sess_refresh_idx\":1,\"rerank_idx\":1,\"before_rerank_idx\":1,\"product_id\":1730231137690751173,\"hybrid_index\":1,\"click_num\":194,\"show_num\":150,\"roughsort_index\":-1,\"after_merge_pid_cnt\":64,\"rl\":{\"tags\":\"recall_window_hive_inverted,recall_window_product\"},\"video2item_trigger_items\":\",\",\"category\":{\"lv1\":\"953224\",\"lv2\":\"955400\",\"leaf\":\"959368\",\"rec_ctg_lv4\":\"97319200\"},\"ver_tag\":\"8935565534246739815\",\"free_ship\":{\"new_fee\":0.0,\"old_fee\":0.0,\"free_ship\":0,\"group_free_ship\":\"3:0,0:0,4:0,1:0,2:0\"},\"lpa_is_bidding\":0,\"dup\":{\"dup_id\":1730231137690751173,\"cover_sim_id\":1730231137690751173,\"spu_sim_id\":1730231137690751173,\"prod_sim_id\":1732032773937926994},\"context_ttmall_seller_id\":7356434712338056238,\"clk_seq_len\":194,\"low_price_traffic_control\":{\"price_tag_v4\":0,\"ext_same_shop_price\":0.0,\"price_diff_rate\":0.0,\"sale_price_tag_v4\":6},\"sales\":3,\"gender\":\"2\",\"kg_gender\":\"2\",\"age\":\"5\"}"}",
+"recommend_req_id": "7634467830070706463"
+},
+{
+"product_id": "1732125325213274309",
+"status": 1,
+"pdp_schema": "aweme://ec/pdp?biz_type=0\u0026fullScreen=true\u0026orderRequestParams=%7B%7D\u0026requestParams=%7B%22product_id%22%3A%5B%221732125325213274309%22%5D%2C%22ab_img%22%3Afalse%2C%22traffic_signature%22%3A%22%7B%5C%22scene%5C%22%3A%5C%22Default.Showcase.Product_Page_Feeds%5C%22%7D%22%7D\u0026visitReportParams=%7B%22chain_key%22%3A%22%7B%5C%22cck%5C%22%3A%5C%221VNFyRmenZyeSLQAxMG%2FnK7X3JUJifzXUbOzLLJk7V%2BiUokWhRKQVKBaAbyL3fRPcdM06dUbNIbneftw50UjVoZ3YMvQwOX1YUGwlg%3D%3D%5C%22%2C%5C%22mck%5C%22%3A%5C%22%
+2BWeWyhyRU7c5yR3UQynnpMPT8cBn3bJ2wHkwfVE%2FXqw6Ls1YocNl31u0KuBTz%2FdamOzajF9b5hfmXWsSJXS18Q5Wng3Xssp%2F3C3BGQ%3D%3D%5C%22%2C%5C%22v%5C%22%3A1%7D%22%2C%22material_id%22%3A%221732125325213274309%22%2C%22material_type%22%3A1%2C%22seller_id%22%3A%227495527153686448325%22%7D",
+"cover": {
+"image": {
+"height": 500,
+"width": 500,
+"uri": "tos-useast5-i-omjb5zjo8w-tx/08c6815c07404baa8850e2de9c56466a",
+"url_list": [
+"https://p16-oec-general-useast5.ttcdn-us.com/tos-useast5-i-omjb5zjo8w-tx/08c6815c07404baa8850e2de9c56466a~tplv-fhlh96nyum-crop-webp:500:500.webp?dr=12190\u0026t=555f072d\u0026ps=933b5bde\u0026shp=4ee6669e\u0026shcp=9b759fb9\u0026idc=useast8\u0026from=1323722398"
+],
+"ratio":
+联系方式：@some1899
